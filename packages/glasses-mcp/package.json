@@ -1,0 +1,30 @@
+{
+  "name": "@vel/glasses-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "vel-glasses-mcp": "dist/index.js",
+    "vel-glasses": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@vel/core": "workspace:*",
+    "@vel/mcp-base": "workspace:*",
+    "commander": "^15.0.0",
+    "sharp": "^0.33.5",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

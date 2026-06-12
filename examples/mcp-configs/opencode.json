@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "vel-glasses": {
+      "type": "local",
+      "command": ["pnpm", "--dir", "/absolute/path/to/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
+      "enabled": true,
+      "environment": {
+        "VEL_GLASSES_PROVIDER": "mock"
+      }
+    }
+  }
+}

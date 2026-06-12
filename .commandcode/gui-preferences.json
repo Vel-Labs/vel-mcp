@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "projectPath": "/Users/steven/Workspace/40_Code/projects/vel-mcp",
+  "updatedAt": "2026-06-08T11:21:13.505Z",
+  "model": "deepseek/deepseek-v4-pro",
+  "runtimeMode": "real-session",
+  "permissionMode": "standard",
+  "trust": false,
+  "skipOnboarding": false,
+  "headlessMaxTurns": 10,
+  "headlessYolo": false,
+  "appearanceTheme": "cc-spectrum"
+}

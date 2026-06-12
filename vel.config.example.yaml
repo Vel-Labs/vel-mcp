@@ -1,0 +1,206 @@
+vel:
+  home: "~/.vel"
+  artifactStore: "~/.vel/artifacts"
+  auditStore: "~/.vel/audit"
+  workerIdleTtlSeconds: 600
+  logLevel: "info"
+  warnFileSizeMb: 25
+  worker:
+    maxRestarts: 3
+    restartWindowSec: 60
+    startupTimeoutSec: 30
+
+modules:
+  glasses:
+    enabled: true
+    defaultProvider: "mock"
+    allowHttpImageLoading: false
+    maxImageDimension: 8192
+
+    providers:
+      mock:
+        enabled: true
+        priority: 10
+      glasses-vision:
+        enabled: false
+        priority: 1
+        python: "${VEL_VISION_PYTHON:-python3}"
+        model: "${VEL_VISION_MODEL:-mlx-community/LocateAnything-3B-bf16}"
+        requestTimeoutSec: 180
+        workerIdleTtlSeconds: 600
+
+    # === Model Registry ===
+    # Declare all vision models available on this machine.
+    # Each model has a role, runtime, and task affinity.
+    # The provider router auto-selects models based on role → tool mapping.
+    # Communities: report what works via GitHub issues.
+
+    models:
+      # --- Grounding / Localization ---
+      - id: "mlx-community/LocateAnything-3B-bf16"
+        displayName: "LocateAnything-3B BF16 (MLX-VLM)"
+        kind: "mlx-vlm"
+        role: "grounding"
+        sizeGb: 7.2
+        licenseWarning: "Non-commercial (inherits from upstream NVIDIA model)"
+        taskAffinity: ["locate", "ocr", "gui", "document-layout"]
+        dependencies: ["mlx-vlm>=0.6.2"]
+        setupInstructions:
+          - "✅ VERIFIED on Apple Silicon — 0.9s inference, correct spatial grounding"
+          - "Install: pip install 'mlx-vlm>=0.6.2' huggingface_hub"
+          - "Download: huggingface-cli download mlx-community/LocateAnything-3B-bf16 --local-dir ~/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16"
+          - "Usage: prefix prompts with 'detect: <query>' for grounding tasks"
+
+      - id: "mlx-community/LocateAnything-3B-4bit"
+        displayName: "LocateAnything-3B 4-bit (MLX)"
+        kind: "mlx"
+        role: "grounding"
+        sizeGb: 3.8
+        licenseWarning: "Non-commercial (inherits upstream). 4-bit — verify quality before use."
+        taskAffinity: ["locate", "ocr", "gui"]
+        dependencies: ["mlx-vlm>=0.6.2"]
+        setupInstructions:
+          - "Mixed 4/8-bit quantized conversion of LocateAnything-3B for Apple Silicon"
+          - "Install: pip install 'mlx-vlm>=0.6.2' huggingface_hub"
+          - "Download: huggingface-cli download mlx-community/LocateAnything-3B-4bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-4bit"
+
+      # --- General VLM (Image QA, Screenshot Reading, Document Reasoning) ---
+      - id: "mlx-community/Qwen3-VL-8B-Thinking-8bit"
+        displayName: "Qwen3-VL-8B Thinking (MLX-VLM)"
+        kind: "mlx-vlm"
+        role: "general_vlm"
+        sizeGb: 9.5
+        licenseWarning: "Apache 2.0"
+        taskAffinity: ["inspect_image", "describe", "ask", "document-understanding", "video_frame_reasoning"]
+        dependencies: ["mlx-vlm>=0.6.2"]
+        setupInstructions:
+          - "✅ VERIFIED on Apple Silicon — 4.7s inference, coherent image description"
+          - "Primary general VLM for Glasses: screenshots, document QA, video frame reasoning"
+          - "256K token context, supports images and video, dense and MoE variants"
+          - "Install: pip install 'mlx-vlm>=0.6.2' huggingface_hub"
+          - "Download: huggingface-cli download mlx-community/Qwen3-VL-8B-Thinking-8bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-8B-Thinking-8bit"
+
+      - id: "mlx-community/Qwen3-VL-4B-Instruct-5bit"
+        displayName: "Qwen3-VL-4B Instruct (MLX-VLM)"
+        kind: "mlx-vlm"
+        role: "general_vlm"
+        sizeGb: 5.0
+        licenseWarning: "Apache 2.0"
+        taskAffinity: ["inspect_image", "describe", "fast_caption", "video_frame_reasoning"]
+        dependencies: ["mlx-vlm>=0.6.2"]
+        setupInstructions:
+          - "Fast general VLM for screenshots, quick captions, background passes"
+          - "Lower memory profile — good fallback when 8B is too slow or memory-constrained"
+          - "Install: pip install 'mlx-vlm>=0.6.2' huggingface_hub"
+          - "Download: huggingface-cli download mlx-community/Qwen3-VL-4B-Instruct-5bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-5bit"
+
+      - id: "mlx-community/Qwen2.5-VL-7B-Instruct-4bit"
+        displayName: "Qwen2.5-VL-7B Instruct (MLX-VLM)"
+        kind: "mlx-vlm"
+        role: "general_vlm"
+        sizeGb: 5.5
+        licenseWarning: "Apache 2.0"
+        taskAffinity: ["inspect_image", "describe", "document-understanding", "compatibility_baseline"]
+        dependencies: ["mlx-vlm>=0.6.2"]
+        setupInstructions:
+          - "Proven general VLM — visual recognition, object localization, document parsing, video comprehension"
+          - "Stable compatibility baseline for eval comparisons"
+          - "Install: pip install 'mlx-vlm>=0.6.2' huggingface_hub"
+          - "Download: huggingface-cli download mlx-community/Qwen2.5-VL-7B-Instruct-4bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen2.5-VL-7B-Instruct-4bit"
+
+      - id: "mlx-community/InternVL3-8B-MLX-4bit"
+        displayName: "InternVL3-8B (MLX-VLM)"
+        kind: "mlx-vlm"
+        role: "general_vlm"
+        sizeGb: 5.5
+        licenseWarning: "MIT"
+        taskAffinity: ["inspect_image", "describe", "second_opinion"]
+        dependencies: ["mlx-vlm>=0.6.2"]
+        setupInstructions:
+          - "Alternate VLM — good for A/B evaluation and second-opinion vision"
+          - "4-bit MLX quantized conversion for Apple Silicon"
+          - "Install: pip install 'mlx-vlm>=0.6.2' huggingface_hub"
+          - "Download: huggingface-cli download mlx-community/InternVL3-8B-MLX-4bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/InternVL3-8B-MLX-4bit"
+
+      # --- Deprecated / Gated ---
+      - id: "nvidia/LocateAnything-3B"
+        displayName: "LocateAnything-3B (Transformers)"
+        kind: "transformers"
+        role: "grounding"
+        sizeGb: 7.3
+        licenseWarning: "Non-commercial. Deprecated — use MLX conversion instead."
+        taskAffinity: ["locate", "ocr"]
+        enabled: false
+        setupInstructions:
+          - "⚠️ Deprecated: use mlx-community/LocateAnything-3B-bf16 instead (4x faster on Apple Silicon)"
+          - "Requires Eagle repo + locateanything_worker + torch + transformers"
+
+      - id: "nvidia/Eagle2.5-8B"
+        displayName: "Eagle2.5-8B"
+        kind: "transformers"
+        role: "general_vlm"
+        sizeGb: 16.1
+        licenseWarning: "🔒 Gated — requires NVIDIA authorization on HuggingFace."
+        taskAffinity: ["inspect_image", "describe", "ask", "video_summarize"]
+        enabled: false
+        setupInstructions:
+          - "🔒 Gated repo — request access at https://huggingface.co/nvidia/Eagle2.5-8B"
+          - "No MLX conversion available — MPS load failed (Flash Attention 2 not supported on Apple Silicon)"
+          - "Use Qwen3-VL or Qwen2.5-VL as the general VLM instead"
+
+    # === Role-based routing ===
+    # Maps model roles to specific model IDs with fallback chains.
+    # The provider router resolves: tool → role → preferred model → fallback chain.
+    roles:
+      general_vlm:
+        preferred: "mlx-community/Qwen3-VL-8B-Thinking-8bit"
+        fallback:
+          - "mlx-community/Qwen3-VL-4B-Instruct-5bit"
+          - "mlx-community/Qwen2.5-VL-7B-Instruct-4bit"
+          - "mlx-community/InternVL3-8B-MLX-4bit"
+
+      grounding:
+        preferred: "mlx-community/LocateAnything-3B-bf16"
+        fallback:
+          - "mlx-community/Qwen3-VL-8B-Thinking-8bit"
+
+      ocr:
+        preferred: "builtin_ocr"
+        fallback:
+          - "mlx-community/LocateAnything-3B-bf16"
+          - "mlx-community/Qwen3-VL-8B-Thinking-8bit"
+
+      video_frame_vlm:
+        preferred: "mlx-community/Qwen3-VL-8B-Thinking-8bit"
+        fallback:
+          - "mlx-community/Qwen3-VL-4B-Instruct-5bit"
+
+      temporal_vlm:
+        preferred: "mlx-community/Qwen3-VL-8B-Thinking-8bit"
+
+    # === Tool-to-role routing ===
+    # Each tool maps to a model role. The provider router resolves the role to a model.
+    toolToRole:
+      inspect_image: "general_vlm"
+      describe: "general_vlm"
+      ask: "general_vlm"
+      locate: "grounding"
+      ocr: "ocr"
+      inspect_region: "general_vlm"
+      compare: "general_vlm"
+      video_scan: "video_frame_vlm"
+      video_locate: "grounding"
+      video_summarize: "temporal_vlm"
+
+  brain:
+    enabled: false
+    wikiPath: "~/.vel/brain"
+    requireApprovalForWrites: true
+  speech:
+    enabled: false
+    defaultProvider: "mock"
+  privacy:
+    enabled: false
+    mode: "gateway"
+    allowModelToResolvePlaceholders: false
+    requireHumanReview: true

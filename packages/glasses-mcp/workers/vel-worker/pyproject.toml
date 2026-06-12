@@ -1,0 +1,13 @@
+[project]
+name = "vel-glasses-worker"
+version = "0.1.0"
+description = "JSONL worker bridge for VEL Glasses MCP and MLX vision models"
+requires-python = ">=3.10"
+dependencies = [
+  "pillow>=10.0.0",
+  "mlx-vlm>=0.6.2"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vel_glasses_worker*"]

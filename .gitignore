@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+.vel/
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.cache/
+artifacts/
+work_dirs/
+models/
+eagle/
