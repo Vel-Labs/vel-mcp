@@ -23,12 +23,13 @@ export function inspectRegionTool(
         throw new Error("Image dimensions required for region cropping");
       }
 
+      const regionNorm1000 = resolveRegionNorm1000(input.regionNorm1000, input.regionPx, loaded.meta.width, loaded.meta.height);
       const crop = await cropper.cropRegion(
         loaded.imageBytes,
         loaded.meta.mimeType ?? "image/png",
         loaded.meta.width,
         loaded.meta.height,
-        input.regionNorm1000
+        regionNorm1000
       );
 
       const provider = router.getForTool("inspect_region", input.provider);
@@ -47,10 +48,14 @@ export function inspectRegionTool(
         observations.unshift(`Query: ${input.query}`);
       }
 
+      const matches = input.query
+        ? await locateAndRemapMatches(provider, cropper, crop, input.query)
+        : [];
       const parentArtifactId = loaded.meta.source.kind === "artifact_id" ? loaded.meta.source.value : undefined;
 
       return toMcpJsonResult(envelope({
         observations,
+        matches,
         region: {
           label: input.query || "selected region",
           bboxNorm1000: crop.parentRegionNorm1000,
@@ -72,4 +77,47 @@ export function inspectRegionTool(
       }));
     },
   };
+}
+
+function resolveRegionNorm1000(
+  regionNorm1000: [number, number, number, number] | undefined,
+  regionPx: [number, number, number, number] | undefined,
+  width: number,
+  height: number
+): [number, number, number, number] {
+  if (regionNorm1000) return regionNorm1000;
+  if (!regionPx) throw new Error("Either regionNorm1000 or regionPx is required for inspect_region.");
+  const [x1, y1, x2, y2] = regionPx;
+  return [
+    Math.round((x1 / width) * 1000),
+    Math.round((y1 / height) * 1000),
+    Math.round((x2 / width) * 1000),
+    Math.round((y2 / height) * 1000),
+  ];
+}
+
+async function locateAndRemapMatches(
+  provider: ReturnType<ProviderRouter["getForTool"]>,
+  cropper: RegionCropper,
+  crop: Awaited<ReturnType<RegionCropper["cropRegion"]>>,
+  query: string
+) {
+  const located = await provider.locate({
+    image: crop.cropArtifactRef,
+    query,
+    targetType: "any",
+    outputType: "both",
+    maxResults: 10,
+    includeRawModelOutput: false,
+  });
+
+  return located.data.matches.map((match) => ({
+    ...match,
+    bboxNorm1000: match.bboxNorm1000 ? cropper.mapChildToParent(match.bboxNorm1000, crop) : undefined,
+    centerNorm1000: match.centerNorm1000 ? cropper.mapChildPointToParent(match.centerNorm1000, crop) : undefined,
+    evidence: {
+      ...match.evidence,
+      cropArtifactId: crop.cropArtifactId,
+    },
+  }));
 }

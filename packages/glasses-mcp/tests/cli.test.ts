@@ -22,6 +22,15 @@ describe("G12 — CLI", () => {
     expect(parsed.providers.some((p: any) => p.id === "mock")).toBe(true);
   });
 
+  it("vel-glasses setup locate-anything prints MLX-first setup guidance", () => {
+    const out = execSync(`node ${CLI} setup locate-anything`, { encoding: "utf-8" });
+    const parsed = JSON.parse(out);
+    expect(parsed.target).toBe("locate-anything");
+    expect(parsed.mode).toBe("mlx-vlm");
+    expect(parsed.env.VEL_VISION_PYTHON).toContain("glasses-mlx/bin/python");
+    expect(parsed.commands.some((cmd: string) => cmd.includes("doctor locate-anything"))).toBe(true);
+  });
+
   it("vel-glasses health checks mock provider", () => {
     const out = execSync(`node ${CLI} health mock`, { encoding: "utf-8" });
     const parsed = JSON.parse(out);

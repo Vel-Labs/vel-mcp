@@ -125,7 +125,7 @@ export class VelVisionProvider implements VisionProvider {
   }
 
   async inspectRegion(input: InspectRegionInput): Promise<VisionProviderResult<{ observations: string[]; region: { label: string; bboxNorm1000: [number, number, number, number]; confidence: number } }>> {
-    return { provider: providerMeta(this.id), timingMs: 0, warnings: [licenseWarning(), "Region crop/remap is not implemented yet."], data: { observations: [], region: { label: "selected region", bboxNorm1000: input.regionNorm1000, confidence: 1 } } };
+    return { provider: providerMeta(this.id), timingMs: 0, warnings: [licenseWarning(), "Region crop/remap is implemented by the MCP tool wrapper."], data: { observations: [], region: { label: "selected region", bboxNorm1000: input.regionNorm1000 ?? [0, 0, 1000, 1000], confidence: 1 } } };
   }
 
   async compare(_input: CompareInput): Promise<VisionProviderResult<{ summary: string; changedRegions: [] }>> {

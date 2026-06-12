@@ -13,6 +13,13 @@ export const BBoxNorm1000Schema = z.tuple([
   z.number().min(0).max(1000)
 ]);
 
+export const BBoxPxSchema = z.tuple([
+  z.number().int().min(0),
+  z.number().int().min(0),
+  z.number().int().min(0),
+  z.number().int().min(0)
+]);
+
 export const PointNorm1000Schema = z.tuple([
   z.number().min(0).max(1000),
   z.number().min(0).max(1000)
@@ -48,7 +55,8 @@ export const OcrInputSchema = ProviderSchema.extend({
 
 export const InspectRegionInputSchema = ProviderSchema.extend({
   image: ImageRefSchema,
-  regionNorm1000: BBoxNorm1000Schema,
+  regionNorm1000: BBoxNorm1000Schema.optional(),
+  regionPx: BBoxPxSchema.optional(),
   query: z.string().optional(),
   detail: z.enum(["low", "medium", "high"]).default("high")
 }).strict();
@@ -62,8 +70,12 @@ export const CompareInputSchema = ProviderSchema.extend({
 export const VideoScanInputSchema = ProviderSchema.extend({
   video: ImageRefSchema,
   sampling: z.object({
-    everySeconds: z.number().positive().default(2),
-    maxFrames: z.number().int().min(1).max(500).default(60)
+    everySeconds: z.number().positive().optional(),
+    fps: z.number().positive().max(30).optional(),
+    sceneChangeThreshold: z.number().min(0).max(1).optional(),
+    maxFrames: z.number().int().min(1).max(500).default(60),
+    maxDurationSec: z.number().positive().max(3600).default(600),
+    maxBytes: z.number().int().positive().default(250 * 1024 * 1024)
   }).default({ everySeconds: 2, maxFrames: 60 }),
   query: z.string().optional()
 }).strict();

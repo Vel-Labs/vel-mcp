@@ -19,8 +19,11 @@ Vision/OCR/grounding MCP package for VEL.
 ## Real Model Checks
 
 ```bash
+node packages/glasses-mcp/dist/cli.js setup locate-anything
+
 python3.11 -m venv .vel/venvs/glasses-mlx
 .vel/venvs/glasses-mlx/bin/python -m pip install -e packages/glasses-mcp/workers/vel-worker
+.vel/venvs/glasses-mlx/bin/python -m pip install mlx-vlm huggingface_hub
 
 VEL_VISION_PYTHON=$PWD/.vel/venvs/glasses-mlx/bin/python \
 VEL_VISION_MODEL=/absolute/path/to/LocateAnything-3B-bf16 \

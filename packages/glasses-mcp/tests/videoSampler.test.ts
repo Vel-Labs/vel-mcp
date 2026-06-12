@@ -60,6 +60,24 @@ describe("VideoSampler", () => {
     expect(result.warnings.some((w) => w.includes("limited"))).toBe(true);
   });
 
+  it("supports fps sampling", async () => {
+    const result = await sampler.sampleFrames(videoPath, { fps: 1, maxFrames: 10 });
+    expect(result.frames.length).toBeGreaterThanOrEqual(2);
+    expect(result.frames[1].timestampSec).toBe(1);
+  });
+
+  it("rejects conflicting interval and fps options", async () => {
+    await expect(
+      sampler.sampleFrames(videoPath, { everySeconds: 1, fps: 1, maxFrames: 2 })
+    ).rejects.toThrow("either everySeconds or fps");
+  });
+
+  it("truncates at maxDurationSec", async () => {
+    const result = await sampler.sampleFrames(videoPath, { everySeconds: 1, maxFrames: 10, maxDurationSec: 1 });
+    expect(result.frames.length).toBeLessThanOrEqual(2);
+    expect(result.warnings.some((w) => w.includes("exceeds max 1s"))).toBe(true);
+  });
+
   it("stores frames as artifacts", async () => {
     const result = await sampler.sampleFrames(videoPath, { everySeconds: 1, maxFrames: 10 });
     for (const frame of result.frames) {

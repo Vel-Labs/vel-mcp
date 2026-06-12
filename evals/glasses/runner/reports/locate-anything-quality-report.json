@@ -1,7 +1,7 @@
 {
   "summary": {
-    "total": 1,
-    "passed": 1,
+    "total": 2,
+    "passed": 2,
     "failed": 0,
     "skipped": 0
   },
@@ -23,12 +23,38 @@
           "threshold": 30
         }
       ],
-      "durationMs": 1959,
+      "durationMs": 2091,
+      "errors": []
+    },
+    {
+      "id": "locate-anything-blue-button-gui-click",
+      "taskType": "locate",
+      "pass": true,
+      "metrics": [
+        {
+          "name": "gui_click_success",
+          "value": 1,
+          "pass": true,
+          "threshold": 30
+        },
+        {
+          "name": "center_distance_norm1000",
+          "value": 1,
+          "pass": true,
+          "threshold": 30
+        },
+        {
+          "name": "latency_ms",
+          "value": 1937,
+          "pass": true
+        }
+      ],
+      "durationMs": 2070,
       "errors": []
     }
   ],
   "meta": {
     "runner": "@vel/glasses-evals",
-    "timestamp": "2026-06-12T02:23:44.155Z"
+    "timestamp": "2026-06-12T02:59:22.459Z"
   }
 }

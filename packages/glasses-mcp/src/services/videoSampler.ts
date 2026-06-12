@@ -14,6 +14,7 @@ export interface FrameManifest {
 
 export interface VideoSamplingOptions {
   everySeconds?: number;
+  fps?: number;
   maxFrames?: number;
   maxDurationSec?: number;
 }
@@ -56,9 +57,7 @@ export class VideoSampler {
           const stream = parsed.streams?.[0] ?? {};
           const format = parsed.format ?? {};
 
-          const fps = stream.r_frame_rate
-            ? eval(stream.r_frame_rate)
-            : 0;
+          const fps = parseFps(stream.r_frame_rate);
 
           resolve({
             durationSec: parseFloat(format.duration ?? "0"),
@@ -87,7 +86,10 @@ export class VideoSampler {
     }
 
     const maxFrames = opts.maxFrames ?? 60;
-    const everySeconds = opts.everySeconds ?? 2;
+    if (opts.everySeconds && opts.fps) {
+      throw new Error("Video sampling accepts either everySeconds or fps, not both.");
+    }
+    const everySeconds = opts.fps ? 1 / opts.fps : opts.everySeconds ?? 2;
     const maxDurationSec = opts.maxDurationSec ?? 600;
 
     if (videoInfo.durationSec > maxDurationSec) {
@@ -173,4 +175,13 @@ export class VideoSampler {
       });
     });
   }
+}
+
+function parseFps(rate: unknown): number {
+  if (typeof rate !== "string" || rate.length === 0) return 0;
+  const [numeratorRaw, denominatorRaw] = rate.split("/");
+  const numerator = Number(numeratorRaw);
+  const denominator = denominatorRaw === undefined ? 1 : Number(denominatorRaw);
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return 0;
+  return numerator / denominator;
 }

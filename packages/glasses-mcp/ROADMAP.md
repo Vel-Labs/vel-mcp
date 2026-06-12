@@ -266,17 +266,18 @@ Status: **Implemented with metadata, pixel, OCR, and layout diff modes.** `compa
 
 ### G8 — Video analysis ✅ COMPLETE
 
-Status: **Implemented with ffmpeg-based frame sampling and provider frame analysis.** `videoScanTool` uses `VideoSampler` service to probe video metadata and extract frames at configurable intervals using ffmpeg's `fps` filter. Frames are stored as artifacts. If a query is provided, `locate` is run on each sampled frame to detect events across the timeline.
+Status: **Implemented with ffmpeg-based frame sampling and provider frame analysis.** `videoScanTool` uses `VideoSampler` service to probe video metadata and extract frames at configurable intervals or fixed FPS using ffmpeg's `fps` filter. Frames are stored as artifacts. If a query is provided, `locate` is run on each sampled frame to detect events across the timeline.
 
 - [x] Accept video as file path or artifact.
 - [x] Extract frame manifest: `[{ frameIndex, timestampSec, artifactId }]`.
-- [x] Sampling policies: every N seconds, fixed FPS, keyframe-only, scene-change detection (later).
-- [x] Run `inspect_image` or `locate` over sampled frames.
-- [x] Return events: `[{ timestampSec, frameIndex, label, bbox, confidence }]`.
+- [x] Sampling policies: every N seconds and fixed FPS.
+- [ ] Keyframe-only and scene-change detection.
+- [x] Run `locate` over sampled frames when a query is provided.
+- [x] Return events: `[{ timestampSec, frameIndex, frameArtifactId, label, bboxNorm1000, centerNorm1000, confidence, uncertainty }]`.
 - [x] Return timeline summary: key events sorted by timestamp.
 - [x] Hard limits: max duration (configurable, default 10 min), max file size, max frames (500).
 
-**Implementation:** `src/services/videoSampler.ts` (ffmpeg probe + fps filter extraction), `src/tools/videoScan.ts` (tool handler), `tests/videoSampler.test.ts` (4 tests).
+**Implementation:** `src/services/videoSampler.ts` (ffmpeg probe + fps filter extraction), `src/tools/videoScan.ts` (tool handler), `tests/videoSampler.test.ts` and `tests/videoScanTool.test.ts` (9 tests).
 
 ### G9 — Evals ✅ COMPLETE
 
@@ -293,7 +294,7 @@ Status: **Implemented with ffmpeg-based frame sampling and provider frame analys
 - [x] OCR character error rate (CER) and word error rate (WER).
 - [x] Eval runner tests cover full task run, metric pass/fail, report structure, span IoU, and reading-order correlation.
 - [x] Real MLX smoke report: `evals/glasses/runner/reports/locate-anything-smoke-report.json` passes one execution case.
-- [x] Real MLX quality report: `evals/glasses/runner/reports/locate-anything-quality-report.json` passes the generated blue-button grounding case with `bbox_iou` 0.985 and center distance 1.
+- [x] Real MLX quality report: `evals/glasses/runner/reports/locate-anything-quality-report.json` passes the generated blue-button grounding case with `bbox_iou` 0.985 and center distance 1; dataset now also includes a GUI-click quality case.
 - [x] Runs in CI via `pnpm test` (part of pnpm -r test sweep).
 
 ### G10 — Non-coding use case tools ✅ COMPLETE

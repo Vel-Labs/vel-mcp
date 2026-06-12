@@ -25,15 +25,37 @@ export function videoScanTool(
       if (loaded.meta.source.kind !== "file_path") {
         throw new Error(`Video scanning currently only supports file_path inputs. Got: ${loaded.meta.source.kind}`);
       }
+      const maxBytes = input.sampling?.maxBytes ?? 250 * 1024 * 1024;
+      if (loaded.meta.bytes > maxBytes) {
+        throw new Error(`Video file exceeds maxBytes policy (${loaded.meta.bytes} > ${maxBytes}).`);
+      }
+      if (input.sampling?.everySeconds && input.sampling?.fps) {
+        throw new Error("Video sampling accepts either everySeconds or fps, not both.");
+      }
+      if (input.sampling?.sceneChangeThreshold !== undefined) {
+        warnings.push("sceneChangeThreshold is accepted for policy compatibility but scene-change sampling is not implemented yet; interval/fps sampling was used.");
+      }
 
       const videoPath = loaded.meta.source.value;
       const { frames, warnings: sampleWarnings, videoInfo } = await sampler.sampleFrames(videoPath, {
         everySeconds: input.sampling?.everySeconds,
+        fps: input.sampling?.fps,
         maxFrames: input.sampling?.maxFrames,
+        maxDurationSec: input.sampling?.maxDurationSec,
       });
       warnings.push(...sampleWarnings);
 
-      const events: Array<{ timestampSec: number; frameIndex: number; label: string; confidence?: number }> = [];
+      const events: Array<{
+        timestampSec: number;
+        frameIndex: number;
+        frameArtifactId: string;
+        label: string;
+        bboxNorm1000?: [number, number, number, number];
+        centerNorm1000?: [number, number];
+        confidence?: number;
+        uncertainty?: string;
+        evidence?: { text?: string; rawModelOutput?: string; cropArtifactId?: string; frameArtifactId: string };
+      }> = [];
 
       // If query provided, run locate on each frame
       if (input.query && frames.length > 0) {
@@ -52,8 +74,16 @@ export function videoScanTool(
               events.push({
                 timestampSec: frame.timestampSec,
                 frameIndex: frame.frameIndex,
+                frameArtifactId: frame.artifactId,
                 label: match.label,
+                bboxNorm1000: match.bboxNorm1000,
+                centerNorm1000: match.centerNorm1000,
                 confidence: match.confidence,
+                uncertainty: match.uncertainty,
+                evidence: {
+                  ...match.evidence,
+                  frameArtifactId: frame.artifactId,
+                },
               });
             }
           } catch (err) {
@@ -71,6 +101,15 @@ export function videoScanTool(
           height: videoInfo.height,
           fps: videoInfo.fps,
           format: videoInfo.format,
+        },
+        policy: {
+          maxBytes,
+          maxDurationSec: input.sampling?.maxDurationSec ?? 600,
+          maxFrames: input.sampling?.maxFrames ?? 60,
+          sampling: input.sampling?.fps
+            ? { fps: input.sampling.fps }
+            : { everySeconds: input.sampling?.everySeconds ?? 2 },
+          truncated: videoInfo.durationSec > (input.sampling?.maxDurationSec ?? 600),
         },
       }, {
         provider: { name: "glasses-video", version: "0.1.0" },

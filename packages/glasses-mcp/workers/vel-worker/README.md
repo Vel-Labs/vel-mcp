@@ -1,41 +1,48 @@
-# LocateAnything Python Worker
+# VEL Glasses Python Worker
 
-This worker is a JSONL bridge between `@vel/glasses-mcp` and NVIDIA Eagle / LocateAnything.
+This worker is a JSONL bridge between `@vel/glasses-mcp` and local vision models. The current first-class backend is Apple Silicon MLX through `mlx-vlm` with LocateAnything-compatible model output.
 
-## Why a separate Python worker?
+## Runtime Contract
 
-- Keeps the MCP server lightweight.
-- Allows lazy model loading.
-- Isolates Python/torch dependencies from TypeScript packages.
-- Allows worker shutdown to free RAM/VRAM.
+- MCP servers write only JSON-RPC to stdout.
+- This worker writes only JSONL responses to stdout.
+- Model logs and third-party library stdout are redirected to stderr.
+- Models are loaded lazily on first request, not at MCP server startup.
 
 ## Setup
 
-Install Eagle separately:
+From the repo root:
 
 ```bash
-git clone https://github.com/NVlabs/Eagle.git eagle
-cd eagle/Embodied
-pip install -e .
+python3.11 -m venv .vel/venvs/glasses-mlx
+.vel/venvs/glasses-mlx/bin/python -m pip install -e packages/glasses-mcp/workers/vel-worker
+.vel/venvs/glasses-mlx/bin/python -m pip install mlx-vlm huggingface_hub
 ```
 
-Install this worker in editable mode:
+Download a compatible model, or point at an existing local cache:
 
 ```bash
-cd packages/glasses-mcp/workers/locate-anything
-pip install -e .
+huggingface-cli download mlx-community/LocateAnything-3B-bf16 \
+  --local-dir ~/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16
 ```
 
-Set environment variables:
+Set environment variables for real-provider runs:
 
 ```bash
-export VEL_LOCATEANYTHING_REPO=/absolute/path/to/eagle/Embodied
-export VEL_LOCATEANYTHING_MODEL=nvidia/LocateAnything-3B
-export VEL_LOCATEANYTHING_WORKER_CWD=$PWD
-export VEL_LOCATEANYTHING_WORKER_PYTHONPATH=$PWD
+export VEL_VISION_PYTHON="$PWD/.vel/venvs/glasses-mlx/bin/python"
+export VEL_VISION_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16"
+export VEL_GLASSES_PROVIDER=glasses-grounding
 ```
 
-## JSONL protocol
+The CLI can print the same setup plan:
+
+```bash
+node packages/glasses-mcp/dist/cli.js setup locate-anything
+node packages/glasses-mcp/dist/cli.js setup locate-anything --print-env
+node packages/glasses-mcp/dist/cli.js --provider glasses-grounding doctor locate-anything
+```
+
+## JSONL Protocol
 
 Request:
 
@@ -51,6 +58,6 @@ Response:
 
 Errors are structured and do not crash the MCP server.
 
-## License warning
+## License Warning
 
-LocateAnything-3B is documented as non-commercial. Do not bundle model weights or auto-download them without explicit user action.
+LocateAnything-derived weights are non-commercial unless upstream licensing changes. Do not bundle model weights or auto-download them without explicit operator action.

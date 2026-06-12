@@ -113,10 +113,11 @@ export class MockVisionProvider implements VisionProvider {
 
   async inspectRegion(input: InspectRegionInput): Promise<VisionProviderResult<{ observations: string[]; region: LocalizationResult }>> {
     const query = input.query ?? "";
+    const region = input.regionNorm1000 ?? [0, 0, 1000, 1000] as [number, number, number, number];
     const obsBase = query ? `Mock region inspection for "${query}"` : "Mock region inspection";
     return timed("mock", {
-      observations: [obsBase, `Region bbox: [${input.regionNorm1000.join(",")}]`, `Detail: ${input.detail ?? "high"}`],
-      region: { label: query || "selected region", bboxNorm1000: input.regionNorm1000, confidence: 1 }
+      observations: [obsBase, `Region bbox: [${region.join(",")}]`, `Detail: ${input.detail ?? "high"}`],
+      region: { label: query || "selected region", bboxNorm1000: region, confidence: 1 }
     });
   }
 
@@ -145,14 +146,23 @@ export class MockVisionProvider implements VisionProvider {
 
   async videoScan(input: VideoScanInput): Promise<VisionProviderResult<{ frames: unknown[]; events: unknown[] }>> {
     const maxFrames = input.sampling?.maxFrames ?? 60;
+    const interval = input.sampling?.everySeconds ?? (input.sampling?.fps ? 1 / input.sampling.fps : 2);
     const frames = [];
     for (let i = 0; i < Math.min(maxFrames, 10); i++) {
-      frames.push({ frameIndex: i, timestampSeconds: i * (input.sampling?.everySeconds ?? 2), source: input.video.kind });
+      frames.push({ frameIndex: i, timestampSec: i * interval, source: input.video.kind, artifactId: `mock-frame-${i}` });
     }
     return timed("mock", {
       frames,
       events: input.query
-        ? frames.map((f) => ({ timestampSeconds: f.timestampSeconds, label: input.query, confidence: 0.5 + Math.random() * 0.3 }))
+        ? frames.map((f) => ({
+            timestampSec: f.timestampSec,
+            frameIndex: f.frameIndex,
+            frameArtifactId: f.artifactId,
+            label: input.query,
+            bboxNorm1000: [100, 200, 400, 300],
+            centerNorm1000: [250, 250],
+            confidence: 0.65
+          }))
         : []
     });
   }

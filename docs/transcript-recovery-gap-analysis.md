@@ -37,30 +37,43 @@ The project is still not complete as a functional, benchmarked Vel-Glasses layer
 | Worker stdout discipline | Present | `packages/glasses-mcp/workers/vel-worker/vel_glasses_worker/main.py`. |
 | Real model smoke and quality reports | Present | `evals/glasses/runner/reports/locate-anything-*-report.*`. |
 
-## Remaining Gaps
+## Implementation Pass 2026-06-12
+
+Closed or advanced in this pass:
+
+- Added dry-run-first `vel-glasses setup locate-anything` with `--print-env` and `--check`.
+- Updated live worker docs to the MLX-first `VEL_VISION_*` path.
+- Updated model discovery guidance to respect `VEL_VISION_MODEL`, `HF_HOME`, and common local MLX cache paths.
+- Added CLI one-shot `WorkerSupervisor.stopAll()` finalization across command handlers.
+- Added `regionPx` to `glasses.inspect_region`, with conversion to normalized coordinates.
+- Added crop-local locate result remapping back into parent-image coordinates.
+- Added video `fps`, `maxDurationSec`, and `maxBytes` policy fields.
+- Added hard video file-size rejection, duration truncation metadata, and frame artifact/region provenance on video events.
+- Expanded the real LocateAnything quality dataset with a GUI click case.
+
+Still open after this pass:
+
+- Scene-change video sampling is schema-compatible but not implemented; the tool emits a warning when requested.
+- Semantic compare remains undecided.
+- Eagle/PyTorch remains an optional backend decision rather than an MLX recovery blocker.
+- Real eval fixture breadth is still modest until more images/videos are added.
+
+## Remaining Gaps Snapshot
 
 | Gap | Impact | Suggested next action |
 | --- | --- | --- |
-| No automated `setup locate-anything` CLI equivalent | Operators still need manual venv/model setup. `glasses.setup` gives guidance, but does not install or validate end to end. | Add `vel-glasses setup locate-anything` with dry-run by default, explicit install flags, and no stdout noise. |
-| Worker README is stale | It still references `VEL_LOCATEANYTHING_*` and the old Eagle/PyTorch layout while current implementation is MLX-first with `VEL_VISION_*`. | Update `packages/glasses-mcp/workers/vel-worker/README.md` and stale model-discovery guidance. |
-| `inspect_region` only accepts normalized coordinates | Transcript implied both normalized and pixel-region ergonomics. Current schema requires `regionNorm1000`. | Add `regionPx` input with conversion to normalized coordinates when image dimensions are known. |
-| `inspect_region` does not remap crop-local detections to parent coordinates | Cropper has mapping helpers, but the tool currently returns observations plus the selected region only. | If query/object inspection is requested, run locate/OCR on the crop and remap child boxes/points back to the parent image. |
+| Setup automation is dry-run only | Operators still run dependency install/download commands explicitly. This is intentional for now because model downloads and dependency writes should be operator-owned. | Add opt-in install flags only after deciding the desired local install policy. |
+| Historical docs still mention Eagle/PyTorch | Some older plan/reference docs preserve prior backend notes. | Update or archive historical docs when backend policy is settled. |
 | No semantic compare mode | Current compare modes are metadata, pixel, OCR, layout, and auto. The deleted path included a provider-backed semantic compare idea. | Add `mode: "semantic"` only if the output contract stays structured and deterministic. |
-| Video sampling controls are basic | Current schema supports `everySeconds` and `maxFrames`; no `fps` or scene-change threshold. | Extend `VideoScanInputSchema.sampling` with controlled `fps` and optional scene-change policy after tests. |
-| Video file-size enforcement is not hard | Duration truncation exists in `VideoSampler`; file-size is currently image-loader warning-level, not a video policy gate. | Add `maxDurationSec` and `maxBytes` to video policy, returning structured failure or truncation metadata. |
-| Video events omit region provenance | Events include timestamp, frame index, label, confidence; frame artifacts are separate. Bboxes/centers are not carried into events. | Include bbox/center, uncertainty, and frame artifact ID on each event. |
-| Non-benchmark real-provider CLI commands can leave workers alive | Benchmark exits explicitly; other CLI commands may keep the process open after starting a worker supervisor. | Add explicit supervisor shutdown or CLI process finalization for one-shot commands. |
-| Model discovery does not fully respect custom cache layout | `VEL_VISION_MODEL` works for execution, but discovery guidance still points at default Hugging Face/Eagle paths. | Teach discovery about `VEL_VISION_MODEL`, `HF_HOME`, and the local MLX cache path pattern. |
-| Real eval breadth is still small | Current real receipts cover one blue-button locate smoke and one quality case. | Add a small fixture matrix: GUI point, multiple boxes, text-ish target, negative/no-match, and latency budget report. |
+| Scene-change video sampling is not implemented | `sceneChangeThreshold` is accepted but interval/fps sampling is used with a warning. | Add actual scene-change extraction if video use cases need it. |
+| Real eval breadth is still small | Current real receipts cover blue-button object and GUI-click cases. | Add a fixture matrix: multiple boxes, text-ish target, negative/no-match, and latency budget report. |
 | Eagle/PyTorch backend is not ported | Current repo intentionally moved MLX-first. The deleted setup path included PyTorch/Eagle dependency handling and a `decord` shim. | Treat as a separate optional backend decision, not a recovery blocker, unless NVIDIA/Eagle parity is required. |
 
 ## Priority Order
 
-1. Fix stale setup/docs and one-shot CLI shutdown.
-2. Add pixel-region input and parent-coordinate remapping for `inspect_region`.
-3. Harden video policy: `maxDurationSec`, `maxBytes`, richer event provenance.
-4. Expand real eval fixtures and reports.
-5. Decide whether semantic compare and Eagle/PyTorch are product requirements or optional provider lanes.
+1. Add more real eval fixtures and refresh real MLX reports.
+2. Decide whether semantic compare and Eagle/PyTorch are product requirements or optional provider lanes.
+3. Implement actual scene-change sampling if video timeline use cases require it.
 
 ## Verification Receipts To Keep Current
 
@@ -71,4 +84,3 @@ The project is still not complete as a functional, benchmarked Vel-Glasses layer
 - Real MLX evals:
   `pnpm eval:locate-anything-smoke`
   `pnpm eval:locate-anything-quality`
-

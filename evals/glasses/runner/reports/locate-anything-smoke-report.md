@@ -10,4 +10,4 @@
 
 | ID | Type | Status | Metrics | Errors |
 |---|---|---|---|---|
-| locate-anything-search-smoke | locate | pass | latency_ms: 2377 |  |
+| locate-anything-search-smoke | locate | pass | latency_ms: 2873 |  |

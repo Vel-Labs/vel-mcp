@@ -1,5 +1,5 @@
 import { accessSync, constants } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { homedir } from "node:os";
 
 export interface ModelConfig {
@@ -52,6 +52,10 @@ function dirHasFiles(p: string): boolean {
   } catch {
     return false;
   }
+}
+
+function firstExisting(paths: string[]): string | undefined {
+  return paths.find((p) => fileExists(p) || dirHasFiles(p));
 }
 
 function resolvePath(path?: string): string | undefined {
@@ -116,6 +120,11 @@ const DEFAULT_MODELS: ModelConfig[] = [
 ];
 
 function modelPath(model: ModelConfig): string | undefined {
+  const envModel = process.env.VEL_VISION_MODEL;
+  if (envModel && (envModel.startsWith("/") || envModel.startsWith("~"))) {
+    return resolvePath(envModel);
+  }
+
   if (model.path) return resolvePath(model.path);
 
   const parts = model.id.split("/");
@@ -123,7 +132,15 @@ function modelPath(model: ModelConfig): string | undefined {
   const name = parts.slice(1).join("/");
 
   if (model.kind === "mlx" || model.kind === "mlx-vlm") {
-    return resolve(homedir(), ".cache", "huggingface", "hub", `models--${org}--${name}`, "snapshots");
+    const hfHome = process.env.HF_HOME ? resolvePath(process.env.HF_HOME) : undefined;
+    const hubHome = process.env.HUGGINGFACE_HUB_CACHE ? resolvePath(process.env.HUGGINGFACE_HUB_CACHE) : undefined;
+    const candidates = [
+      resolve(homedir(), "30_AI-Lab", "_cache", "models", model.id),
+      ...(hfHome ? [resolve(hfHome, "hub", `models--${org}--${name}`, "snapshots")] : []),
+      ...(hubHome ? [resolve(hubHome, `models--${org}--${name}`, "snapshots")] : []),
+      resolve(homedir(), ".cache", "huggingface", "hub", `models--${org}--${name}`, "snapshots"),
+    ];
+    return firstExisting(candidates) ?? candidates[0];
   }
 
   return resolve(homedir(), "30_AI-Lab", "_cache", "models", model.id);
@@ -132,7 +149,10 @@ function modelPath(model: ModelConfig): string | undefined {
 function pathExists(model: ModelConfig): boolean {
   const p = modelPath(model);
   if (!p) return false;
-  return model.kind === "transformers" ? dirHasFiles(p) : fileExists(p);
+  if (model.kind === "transformers") return dirHasFiles(p);
+  if (dirHasFiles(p)) return true;
+  const parent = dirname(p);
+  return fileExists(p) && (dirHasFiles(p) || fileExists(parent));
 }
 
 function buildDiscovery(model: ModelConfig): ModelDiscovery {
@@ -171,15 +191,16 @@ function buildDefaultInstructions(model: ModelConfig): string[] {
 
   if (model.kind === "mlx" || model.kind === "mlx-vlm") {
     lines.push("Apple Silicon native MLX model.");
+    lines.push("Set: export VEL_VISION_PYTHON=/path/to/.vel/venvs/glasses-mlx/bin/python");
+    lines.push(`Set: export VEL_VISION_MODEL=/absolute/path/to/${model.id}`);
     lines.push(`Install: pip install ${model.kind === "mlx-vlm" ? "mlx-vlm" : "mlx"} huggingface_hub`);
     lines.push(`Download: huggingface-cli download ${model.id} --local-dir ~/30_AI-Lab/_cache/models/${model.id}`);
   } else {
     const isGrounding = model.role === "spatial-grounding";
     if (isGrounding) {
-      lines.push("Requires Eagle repo + locateanything_worker package.");
-      lines.push("Clone: git clone https://github.com/NVlabs/Eagle.git ~/_cache/repos/NVlabs-Eagle");
-      lines.push(`Set: export VEL_LOCATEANYTHING_REPO=~/_cache/repos/NVlabs-Eagle/Embodied`);
-      lines.push("Install: pip install vel-locate-anything-worker[eagle]");
+      lines.push("Legacy transformers grounding backend is optional; MLX is the current first-class worker path.");
+      lines.push("Set: export VEL_VISION_PYTHON=/path/to/python");
+      lines.push(`Set: export VEL_VISION_MODEL=/absolute/path/to/${model.id}`);
       lines.push(`Download: huggingface-cli download ${model.id} --local-dir ~/30_AI-Lab/_cache/models/${model.id}`);
     } else {
       lines.push("General VLM — provider setup varies by model.");
