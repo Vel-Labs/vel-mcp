@@ -13,16 +13,16 @@
       "metrics": [
         {
           "name": "latency_ms",
-          "value": 2873,
+          "value": 2345,
           "pass": true
         }
       ],
-      "durationMs": 3039,
+      "durationMs": 2493,
       "errors": []
     }
   ],
   "meta": {
     "runner": "@vel/glasses-evals",
-    "timestamp": "2026-06-12T02:59:17.663Z"
+    "timestamp": "2026-06-12T03:29:02.470Z"
   }
 }

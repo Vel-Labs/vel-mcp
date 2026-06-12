@@ -1,7 +1,7 @@
 {
   "summary": {
-    "total": 2,
-    "passed": 2,
+    "total": 5,
+    "passed": 5,
     "failed": 0,
     "skipped": 0
   },
@@ -21,9 +21,15 @@
           "value": 1,
           "pass": true,
           "threshold": 30
+        },
+        {
+          "name": "latency_budget_ms",
+          "value": 2008,
+          "pass": true,
+          "threshold": 30000
         }
       ],
-      "durationMs": 2091,
+      "durationMs": 2156,
       "errors": []
     },
     {
@@ -44,17 +50,98 @@
           "threshold": 30
         },
         {
-          "name": "latency_ms",
-          "value": 1937,
-          "pass": true
+          "name": "latency_budget_ms",
+          "value": 1961,
+          "pass": true,
+          "threshold": 30000
         }
       ],
-      "durationMs": 2070,
+      "durationMs": 2102,
+      "errors": []
+    },
+    {
+      "id": "locate-anything-multiple-blue-buttons",
+      "taskType": "locate",
+      "pass": true,
+      "metrics": [
+        {
+          "name": "match_count",
+          "value": 2,
+          "pass": true,
+          "threshold": 2
+        },
+        {
+          "name": "multi_bbox_iou",
+          "value": 0.99,
+          "pass": true,
+          "threshold": 0.5
+        },
+        {
+          "name": "latency_budget_ms",
+          "value": 2320,
+          "pass": true,
+          "threshold": 30000
+        }
+      ],
+      "durationMs": 2459,
+      "errors": []
+    },
+    {
+      "id": "locate-anything-text-target",
+      "taskType": "locate",
+      "pass": true,
+      "metrics": [
+        {
+          "name": "bbox_iou",
+          "value": 0.835,
+          "pass": true
+        },
+        {
+          "name": "center_distance_norm1000",
+          "value": 11.7,
+          "pass": true,
+          "threshold": 30
+        },
+        {
+          "name": "latency_budget_ms",
+          "value": 2031,
+          "pass": true,
+          "threshold": 30000
+        }
+      ],
+      "durationMs": 2177,
+      "errors": []
+    },
+    {
+      "id": "locate-anything-no-blue-button",
+      "taskType": "locate",
+      "pass": true,
+      "metrics": [
+        {
+          "name": "no_match",
+          "value": 0,
+          "pass": true,
+          "threshold": 0
+        },
+        {
+          "name": "match_count",
+          "value": 0,
+          "pass": true,
+          "threshold": 0
+        },
+        {
+          "name": "latency_budget_ms",
+          "value": 1802,
+          "pass": true,
+          "threshold": 30000
+        }
+      ],
+      "durationMs": 1938,
       "errors": []
     }
   ],
   "meta": {
     "runner": "@vel/glasses-evals",
-    "timestamp": "2026-06-12T02:59:22.459Z"
+    "timestamp": "2026-06-12T03:30:13.043Z"
   }
 }

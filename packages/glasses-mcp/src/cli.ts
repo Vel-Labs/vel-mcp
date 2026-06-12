@@ -351,7 +351,9 @@ program
   .option("--target-type <type>", "Target type: any, object, text, gui, point, region", "any")
   .option("--output-type <type>", "Output type: box, point, both", "box")
   .option("--labels <labels>", "Comma-separated object labels")
+  .option("--max-results <n>", "Maximum matches to return", "10")
   .option("--include-raw-model-output", "Include raw provider output as evidence")
+  .option("--allow-empty-match", "Exit zero when the provider returns no matches")
   .action(async (target, opts) => {
     if (target !== "locate-anything") {
       console.error("Supported benchmark target: locate-anything");
@@ -361,19 +363,23 @@ program
     await withServer(async ({ router }) => {
       const provider = router.get(program.opts().provider ?? "glasses-grounding");
       const started = Date.now();
+      const maxResults = parseInt(opts.maxResults, 10);
+      if (!Number.isInteger(maxResults) || maxResults < 1 || maxResults > 100) {
+        throw new Error("--max-results must be an integer between 1 and 100");
+      }
       const result = await provider.locate({
         image: imageRef(opts.image),
         query: opts.query,
         labels: opts.labels ? String(opts.labels).split(",").map((label) => label.trim()).filter(Boolean) : undefined,
         targetType: opts.targetType,
         outputType: opts.outputType,
-        maxResults: 10,
+        maxResults,
         includeRawModelOutput: Boolean(opts.includeRawModelOutput)
       });
       const payload = {
         schemaVersion: "2026-06-12",
         benchmark: "locate-anything.locate",
-        ok: result.data.matches.length > 0,
+        ok: Boolean(opts.allowEmptyMatch) || result.data.matches.length > 0,
         provider: result.provider,
         timingMs: result.timingMs,
         wallClockMs: Date.now() - started,

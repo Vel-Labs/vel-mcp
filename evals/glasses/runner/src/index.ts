@@ -83,32 +83,35 @@ export function evaluateLocate(pred: Record<string, unknown>, gold: Record<strin
   const results: EvalMetricResult[] = [];
   const predMatches = (pred.matches ?? []) as Array<Record<string, unknown>>;
   const timingMs = Number(pred.timingMs);
-  if (predMatches.length === 0 && metrics.some((m) => m !== "latency_ms")) {
-    return metrics.map((m) => m === "latency_ms"
-      ? { name: m, value: timingMs, pass: Number.isFinite(timingMs) }
-      : { name: m, value: 0, pass: false });
-  }
+  const goldMatches = (gold.matches ?? []) as Array<Record<string, unknown>>;
+  const expectedMatchCount = Number(gold.matchCount ?? goldMatches.length);
+  const expectsNoMatch = gold.noMatch === true || expectedMatchCount === 0;
 
-  const best = predMatches[0] as Record<string, unknown>;
+  const best = predMatches[0] as Record<string, unknown> | undefined;
   const goldBbox = gold.bboxNorm1000 as [number, number, number, number] | undefined;
   const goldCenter = gold.centerNorm1000 as [number, number] | undefined;
 
   for (const metric of metrics) {
     switch (metric) {
       case "bbox_iou": {
-        const predBbox = best.bboxNorm1000 as [number, number, number, number] | undefined;
+        const predBbox = best?.bboxNorm1000 as [number, number, number, number] | undefined;
         const value = predBbox && goldBbox ? bboxIoU(predBbox, goldBbox) : 0;
         results.push({ name: metric, value: Math.round(value * 1000) / 1000, pass: value >= 0.5 });
         break;
       }
+      case "multi_bbox_iou": {
+        const { meanIoU } = matchBoxes(predMatches, goldMatches);
+        results.push({ name: metric, value: Math.round(meanIoU * 1000) / 1000, pass: meanIoU >= 0.5, threshold: 0.5 });
+        break;
+      }
       case "center_distance_norm1000": {
-        const predCenter = best.centerNorm1000 as [number, number] | undefined;
+        const predCenter = best?.centerNorm1000 as [number, number] | undefined;
         const value = predCenter && goldCenter ? centerDistance(predCenter, goldCenter) : Infinity;
         results.push({ name: metric, value: Math.round(value * 100) / 100, pass: value <= 30, threshold: 30 });
         break;
       }
       case "gui_click_success": {
-        const predCenter = best.centerNorm1000 as [number, number] | undefined;
+        const predCenter = best?.centerNorm1000 as [number, number] | undefined;
         const pass = predCenter && goldCenter ? guiClickSuccess(predCenter, goldCenter) : false;
         results.push({ name: metric, value: pass ? 1 : 0, pass, threshold: 30 });
         break;
@@ -117,11 +120,61 @@ export function evaluateLocate(pred: Record<string, unknown>, gold: Record<strin
         results.push({ name: metric, value: timingMs, pass: Number.isFinite(timingMs) });
         break;
       }
+      case "latency_budget_ms": {
+        const budget = Number(gold.latencyBudgetMs ?? 30_000);
+        results.push({ name: metric, value: timingMs, pass: Number.isFinite(timingMs) && timingMs <= budget, threshold: budget });
+        break;
+      }
+      case "match_count": {
+        const value = predMatches.length;
+        results.push({ name: metric, value, pass: value >= expectedMatchCount, threshold: expectedMatchCount });
+        break;
+      }
+      case "no_match": {
+        const value = predMatches.length;
+        results.push({ name: metric, value, pass: expectsNoMatch && value === 0, threshold: 0 });
+        break;
+      }
       default:
         results.push({ name: metric, value: 0, pass: false });
     }
   }
   return results;
+}
+
+function matchBoxes(predMatches: Array<Record<string, unknown>>, goldMatches: Array<Record<string, unknown>>): { meanIoU: number; matchedCount: number; totalCount: number } {
+  if (goldMatches.length === 0) return { meanIoU: predMatches.length === 0 ? 1 : 0, matchedCount: 0, totalCount: 0 };
+
+  const available = predMatches
+    .map((match, index) => ({ index, bbox: match.bboxNorm1000 as [number, number, number, number] | undefined }))
+    .filter((match): match is { index: number; bbox: [number, number, number, number] } => Boolean(match.bbox));
+
+  let totalIoU = 0;
+  let matchedCount = 0;
+
+  for (const goldMatch of goldMatches) {
+    const goldBbox = goldMatch.bboxNorm1000 as [number, number, number, number] | undefined;
+    if (!goldBbox) continue;
+
+    let bestIndex = -1;
+    let bestIoU = 0;
+    for (const candidate of available) {
+      const value = bboxIoU(candidate.bbox, goldBbox);
+      if (value > bestIoU) {
+        bestIoU = value;
+        bestIndex = candidate.index;
+      }
+    }
+
+    totalIoU += bestIoU;
+    if (bestIoU > 0) matchedCount++;
+    if (bestIndex >= 0) {
+      const removeAt = available.findIndex((candidate) => candidate.index === bestIndex);
+      if (removeAt >= 0) available.splice(removeAt, 1);
+    }
+  }
+
+  return { meanIoU: totalIoU / goldMatches.length, matchedCount, totalCount: goldMatches.length };
 }
 
 export function evaluateOcr(pred: Record<string, unknown>, gold: Record<string, unknown>, metrics: string[]): EvalMetricResult[] {

@@ -112,6 +112,9 @@ function createCliProvider(datasetDir: string, provider: string) {
         "--target-type", String(input.targetType ?? "any"),
         "--output-type", String(input.outputType ?? "box")
       ];
+      const maxResults = input.maxResults;
+      if (typeof maxResults === "number" && Number.isInteger(maxResults)) args.push("--max-results", String(maxResults));
+      if (input.allowEmptyMatch === true) args.push("--allow-empty-match");
       const labels = input.labels as string[] | undefined;
       if (labels?.length) args.push("--labels", labels.join(","));
       const { stdout } = await execFileAsync(process.execPath, args, { cwd: repoRoot, maxBuffer: 8 * 1024 * 1024, timeout: 240_000 });

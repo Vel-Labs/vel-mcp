@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { resolve } from "node:path";
 import { runEvals } from "../src/evalRunner.js";
-import { spanIoU, readingOrderCorrelation } from "../src/index.js";
+import { evaluateLocate, spanIoU, readingOrderCorrelation } from "../src/index.js";
 import { MockVisionProvider } from "../../../../packages/glasses-mcp/src/providers/mockVisionProvider.js";
 import type { LocateInput, OcrInput } from "../../../../packages/glasses-mcp/src/schemas.js";
 
@@ -148,6 +148,57 @@ describe("spanIoU", () => {
     const gold = [{ bboxNorm1000: [500, 500, 550, 550] as [number, number, number, number] }];
     const { meanIoU } = spanIoU(pred, gold);
     expect(meanIoU).toBe(0);
+  });
+});
+
+describe("evaluateLocate", () => {
+  it("passes no_match when no predictions are returned", () => {
+    const metrics = evaluateLocate(
+      { matches: [], timingMs: 5 },
+      { noMatch: true, matchCount: 0 },
+      ["no_match", "match_count", "latency_budget_ms"]
+    );
+
+    expect(metrics).toEqual([
+      { name: "no_match", value: 0, pass: true, threshold: 0 },
+      { name: "match_count", value: 0, pass: true, threshold: 0 },
+      { name: "latency_budget_ms", value: 5, pass: true, threshold: 30000 }
+    ]);
+  });
+
+  it("scores multiple expected boxes using one-to-one IoU matching", () => {
+    const metrics = evaluateLocate(
+      {
+        matches: [
+          { bboxNorm1000: [100, 100, 200, 200] },
+          { bboxNorm1000: [500, 100, 600, 200] },
+        ],
+        timingMs: 5
+      },
+      {
+        matchCount: 2,
+        matches: [
+          { bboxNorm1000: [100, 100, 200, 200] },
+          { bboxNorm1000: [500, 100, 600, 200] },
+        ]
+      },
+      ["match_count", "multi_bbox_iou"]
+    );
+
+    expect(metrics).toEqual([
+      { name: "match_count", value: 2, pass: true, threshold: 2 },
+      { name: "multi_bbox_iou", value: 1, pass: true, threshold: 0.5 }
+    ]);
+  });
+
+  it("fails latency_budget_ms when provider timing exceeds the task budget", () => {
+    const metrics = evaluateLocate(
+      { matches: [{ centerNorm1000: [10, 10] }], timingMs: 2500 },
+      { centerNorm1000: [10, 10], latencyBudgetMs: 1000 },
+      ["latency_budget_ms"]
+    );
+
+    expect(metrics).toEqual([{ name: "latency_budget_ms", value: 2500, pass: false, threshold: 1000 }]);
   });
 });
 

@@ -29,7 +29,7 @@
           "threshold": 30
         }
       ],
-      "durationMs": 1,
+      "durationMs": 0,
       "errors": []
     },
     {
@@ -144,6 +144,6 @@
   ],
   "meta": {
     "runner": "@vel/glasses-evals",
-    "timestamp": "2026-06-12T02:16:46.831Z"
+    "timestamp": "2026-06-12T03:31:10.994Z"
   }
 }
