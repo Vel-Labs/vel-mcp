@@ -22,6 +22,7 @@ export interface LocalizationResult {
   bboxPx?: [number, number, number, number];
   centerPx?: [number, number];
   confidence?: number;
+  uncertainty?: string;
   evidence?: VisionEvidence;
 }
 

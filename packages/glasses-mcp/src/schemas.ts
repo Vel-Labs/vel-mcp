@@ -23,6 +23,7 @@ export const ProviderSchema = z.object({ provider: z.string().optional() });
 export const LocateInputSchema = ProviderSchema.extend({
   image: ImageRefSchema,
   query: z.string().min(1),
+  labels: z.array(z.string().min(1)).optional(),
   targetType: z.enum(["any", "object", "text", "gui", "point", "region"]).default("any"),
   outputType: z.enum(["box", "point", "both"]).default("box"),
   maxResults: z.number().int().min(1).max(100).default(10),

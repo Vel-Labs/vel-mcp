@@ -1,0 +1,1 @@
+{"id":"locate-anything-search-smoke","taskType":"locate","tags":["gui","locate-anything","smoke"],"input":{"image":{"kind":"file_path","value":"fixtures/blue-button.png"},"query":"blue button","targetType":"object","labels":["blue button"]},"expected":{},"metrics":["latency_ms"]}

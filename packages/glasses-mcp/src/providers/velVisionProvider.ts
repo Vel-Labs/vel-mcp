@@ -4,7 +4,6 @@ import { parseLocateAnythingAnswer } from "../parsers/locateAnything.js";
 import type { VisionProvider, VisionProviderResult, OcrSpan } from "./types.js";
 import { filterByRegion, mergeLinesByYBands, layoutSort } from "../services/ocrUtils.js";
 import { discoverModels } from "../services/modelDiscovery.js";
-import type { ModelDiscovery } from "../services/modelDiscovery.js";
 
 export interface VelVisionConfig {
   python?: string;
@@ -39,7 +38,7 @@ export class VelVisionProvider implements VisionProvider {
 
   async healthCheck() {
     const warnings: string[] = [licenseWarning()];
-    const modelId = this.config.model || "";
+    const modelId = this.activeModel();
 
     const mlxBf16 = this.discovery.models.find((m) => m.id === modelId);
     if (mlxBf16) {
@@ -51,7 +50,7 @@ export class VelVisionProvider implements VisionProvider {
       return { ok: true, warnings };
     }
 
-    return { ok: true, warnings };
+    return { ok: true, warnings, details: { model: modelId } };
   }
 
   async setup(): Promise<VisionProviderResult<{ models: any[] }>> {
@@ -80,8 +79,9 @@ export class VelVisionProvider implements VisionProvider {
 
   async locate(input: LocateInput): Promise<VisionProviderResult<{ matches: ReturnType<typeof parseLocateAnythingAnswer>["matches"] }>> {
     const started = Date.now();
-    const op = input.targetType === "gui" ? "ground_gui" : input.outputType === "point" ? "point" : "ground_multi";
-    const response = await this.request({ op, image: input.image, query: input.query, outputType: input.outputType, maxResults: input.maxResults });
+    const labels = input.labels?.length ? input.labels : undefined;
+    const op = labels && input.targetType === "object" ? "detect" : input.targetType === "gui" ? "ground_gui" : input.outputType === "point" ? "point" : "ground_multi";
+    const response = await this.request({ op, image: input.image, query: input.query, labels, outputType: input.outputType, maxResults: input.maxResults });
     if (!response.ok) return { provider: providerMeta(this.id), timingMs: Date.now() - started, warnings: [licenseWarning()], data: { matches: [] } };
     const rawAnswer = String((response.result as any)?.answer ?? "");
     const parsed = parseLocateAnythingAnswer(rawAnswer, { includeRawModelOutput: input.includeRawModelOutput });
@@ -193,13 +193,14 @@ export class VelVisionProvider implements VisionProvider {
   private getWorker(): JsonlWorkerClient {
     if (this.worker) return this.worker;
     const c = this.config;
+    const model = this.activeModel();
     this.worker = this.supervisor.getOrCreate({
       id: this.id,
       command: c.python ?? "python3",
       args: c.workerArgs ?? ["-m", "vel_glasses_worker.main"],
       cwd: c.workerCwd ?? undefined,
       env: {
-        VEL_VISION_MODEL: c.model ?? "mlx-community/LocateAnything-3B-bf16",
+        VEL_VISION_MODEL: model,
       },
       idleTtlMs: Number(process.env.VEL_GLASSES_WORKER_IDLE_TTL_SECONDS ?? 600) * 1000
     });
@@ -209,6 +210,10 @@ export class VelVisionProvider implements VisionProvider {
 
   private async request(payload: JsonlRequest) {
     return await this.getWorker().request(payload, 180_000);
+  }
+
+  private activeModel(): string {
+    return process.env.VEL_VISION_MODEL ?? this.config.model ?? "mlx-community/LocateAnything-3B-bf16";
   }
 }
 

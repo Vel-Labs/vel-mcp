@@ -18,19 +18,6 @@ function createTestPng(dir: string): string {
   return path;
 }
 
-function createRedSquarePng(dir: string): string {
-  const path = resolve(dir, "red-square.png");
-  // Minimal 200x200 PNG with a visible red square — generated at test time
-  // by the Python worker's own PIL.open, so we need a real image file.
-  // Using a 1x1 red pixel PNG as a minimal signal for the model to detect.
-  const png = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
-    "base64"
-  );
-  writeFileSync(path, png);
-  return path;
-}
-
 function makeSupervisor() {
   return new WorkerSupervisor(undefined, {
     maxRestarts: 2,

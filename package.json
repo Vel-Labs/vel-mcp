@@ -11,7 +11,10 @@
     "lint": "eslint packages apps evals --ext .ts",
     "verify": "node scripts/verify-scaffold.mjs && pnpm build && pnpm lint && pnpm test && pnpm typecheck",
     "dev:glasses": "pnpm --filter @vel/glasses-mcp dev",
-    "smoke:glasses": "bash scripts/smoke-glasses.sh"
+    "smoke:glasses": "bash scripts/smoke-glasses.sh",
+    "eval:glasses": "pnpm --filter @vel/glasses-evals eval:mock",
+    "eval:locate-anything-smoke": "pnpm --filter @vel/glasses-evals eval:locate-anything-smoke",
+    "eval:locate-anything-quality": "pnpm --filter @vel/glasses-evals eval:locate-anything-quality"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

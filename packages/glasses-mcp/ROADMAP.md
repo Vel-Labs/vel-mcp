@@ -196,29 +196,29 @@ Acceptance:
 
 ### G3 — Python LocateAnything worker ✅ COMPLETE
 
-Status: **Code complete, integration tested via real Python subprocess.** `FAKE_WORKER_MODE=1` env var added to `main.py` — when set, the worker returns deterministic `<ref>/<box>` output without importing Eagle or PIL. Integration test (`tests/pythonWorker.test.ts`) spawns `python3 -m vel_locate_anything_worker.main` via `WorkerSupervisor`, validates health/locate/OCR/point/error over real JSONL. **The real LocateAnything-3B model has NOT been loaded yet** — fake mode bypasses `load_worker()` entirely. Swapping to the real model is a config change (`FAKE_WORKER_MODE` → `VEL_LOCATEANYTHING_REPO`), not yet tested.
+Status: **Code complete, integration tested via real Python subprocess and real MLX model benchmark.** `FAKE_WORKER_MODE=1` returns deterministic `<ref>/<box>` output without loading model dependencies. Integration tests spawn `python3 -m vel_glasses_worker.main` via `WorkerSupervisor`. A local MLX receipt now validates `mlx-community/LocateAnything-3B-bf16` against `evals/glasses/fixtures/blue-button.png`.
 
-- [x] JSONL worker at `workers/locate-anything/vel_locate_anything_worker/main.py`.
+- [x] JSONL worker at `workers/vel-worker/vel_glasses_worker/main.py`.
 - [x] `FAKE_WORKER_MODE` env var — returns deterministic output, no Eagle/PIL needed (mirrors Node `fake-worker.mjs` pattern).
 - [x] Lazy imports — worker doesn't load dependencies until first inference; PIL import moved inside `open_image()`.
-- [x] Returns setup error if `locateanything_worker` can't be imported (real mode only).
-- [x] All 7 ops: `health`, `load_model`, `detect`, `ground_multi`, `detect_text`, `ground_gui`, `point`.
+- [x] Returns setup error if the MLX worker runtime cannot be loaded (real mode only).
+- [x] Core ops: `health`, `detect`, `ground_multi`, `detect_text`, `ground_gui`, `point`, `describe`, `ask`.
 - [x] Returns raw answer + timing.
 - [x] Python logs go to stderr.
-- [x] `pyproject.toml` with optional eagle dependencies.
+- [x] `pyproject.toml` with MLX-VLM runtime dependencies.
 - [x] Dockerfile for containerized use.
 - [x] Integration test (`tests/pythonWorker.test.ts`, 6 tests) — spawns real `python3` subprocess via `WorkerSupervisor`, validates JSONL responses for health/locate/point/OCR/error.
-- [ ] **Real model load test**: remove `FAKE_WORKER_MODE`, point `VEL_LOCATEANYTHING_REPO` at Eagle checkout + `VEL_LOCATEANYTHING_MODEL` at downloaded weights, validate actual `<ref>/<box>` output from LocateAnything-3B.
-- [ ] **MLX candidate test**: try `andai-labs/LocateAnything-3B-MLX` or `mlx-community/LocateAnything-3B-bf16` as Apple Silicon alternatives.
+- [x] **Real model load test**: `vel-glasses --provider glasses-grounding benchmark locate-anything --image evals/glasses/fixtures/blue-button.png --query "blue button" --target-type object --labels "blue button"` returned `<ref>/<box>` output from cached `mlx-community/LocateAnything-3B-bf16`.
+- [x] **MLX candidate test**: `mlx-community/LocateAnything-3B-bf16` passed the generated blue-button quality eval.
 
 ### G4 — LocateAnything Node provider ✅ IMPLEMENTED
 
-Status: **Code complete with tests.** Uses `WorkerSupervisor.getOrCreate()` and a Node fake worker (`core/tests/fake-worker.mjs` in `vision-echo` mode) for testing. Maps tool calls → worker ops correctly, parses responses through the TypeScript parser. Hard-disabled by default (enabled only when `VEL_LOCATEANYTHING_REPO` env var is set).
+Status: **Code complete with tests and real MLX receipt.** Uses `WorkerSupervisor.getOrCreate()` and a Node fake worker (`core/tests/fake-worker.mjs` in `vision-echo` mode) for testing. Maps tool calls → worker ops correctly, parses responses through the TypeScript parser, and honors explicit `VEL_VISION_MODEL`/`VEL_VISION_PYTHON` runtime overrides.
 
-- [x] `LocateAnythingProvider` wraps `WorkerSupervisor.getOrCreate()`.
-- [x] Maps `targetType=gui` → `ground_gui`, `outputType=point` → `point`, OCR → `detect_text`.
+- [x] `VelVisionProvider` wraps `WorkerSupervisor.getOrCreate()`.
+- [x] Maps `targetType=gui` → `ground_gui`, `outputType=point` → `point`, labeled object requests → `detect`, OCR → `detect_text`.
 - [x] Parses worker raw answer through `parseLocateAnythingAnswer()`.
-- [x] Health check verifies repo path.
+- [x] Health check verifies configured model/runtime readiness and reports setup guidance.
 - [x] License warning on all outputs.
 - [x] Config-driven via `LocateAnythingConfig` (repo, python, model, attn impl).
 - [x] 8 integration tests with fake worker (locate ground_multi/ground_gui/point, OCR, inspectImage, license warning, raw output preservation, cancellation).
@@ -281,15 +281,19 @@ Status: **Implemented with ffmpeg-based frame sampling and provider frame analys
 ### G9 — Evals ✅ COMPLETE
 
 - [x] Dataset schema at `evals/glasses/dataset.schema.json`.
-- [x] Sample task list at `evals/glasses/sample-tasks.jsonl` (2 tasks).
+- [x] Sample task list at `evals/glasses/sample-tasks.jsonl`.
+- [x] Real LocateAnything smoke dataset at `evals/glasses/locate-anything-smoke.jsonl`.
+- [x] Real LocateAnything quality dataset at `evals/glasses/locate-anything-quality.jsonl`.
 - [x] Metrics implemented in runner src: `bboxIoU()`, `centerDistance()`, `ocrCer()`, `ocrExact()`, `guiClickSuccess()`, edit distance.
 - [x] Metrics documented in `metrics.md`.
-- [x] Eval runner (`evalRunner.ts`): loads tasks, executes against mock provider, computes metrics, asserts thresholds.
+- [x] Eval runner (`evalRunner.ts` + CLI): loads tasks, executes against mock provider or `glasses-grounding`, computes metrics, asserts thresholds, emits JSON/Markdown reports.
 - [x] IoU metric with configurable threshold (default 0.5).
 - [x] Center distance metric in normalized [0,1000] space (default success ≤ 30).
 - [x] GUI click success metric (center_distance_norm1000 ≤ threshold).
 - [x] OCR character error rate (CER) and word error rate (WER).
-- [x] Eval runner tests: 4 tests covering full task run, metric pass/fail, report structure (in `evals/glasses/runner/tests/`).
+- [x] Eval runner tests cover full task run, metric pass/fail, report structure, span IoU, and reading-order correlation.
+- [x] Real MLX smoke report: `evals/glasses/runner/reports/locate-anything-smoke-report.json` passes one execution case.
+- [x] Real MLX quality report: `evals/glasses/runner/reports/locate-anything-quality-report.json` passes the generated blue-button grounding case with `bbox_iou` 0.985 and center distance 1.
 - [x] Runs in CI via `pnpm test` (part of pnpm -r test sweep).
 
 ### G10 — Non-coding use case tools ✅ COMPLETE
@@ -363,7 +367,7 @@ Acceptance:
 | Gate | Criterion | Dependencies | Status |
 |---|---|---|---|
 | **G0-G1** | Image loading works, mock tools return valid JSON on stdio | Phase 1 complete | ✅ COMPLETE |
-| **G2-G4** | LocateAnything provider works end-to-end (health → inference → parsed result) | G1, Python worker | ✅ COMPLETE (fake mode; real model not yet loaded) |
+| **G2-G4** | LocateAnything provider works end-to-end (health → inference → parsed result) | G1, Python worker | ✅ COMPLETE (fake mode + real MLX benchmark) |
 | **G5** | OCR mode differentiation, region filtering, mergeLines, span eval metrics | G1, parser | ✅ COMPLETE |
 | **G6-G7** | Region inspection with crop/remap, image comparison with pixel/OCR/layout diff | G1, image processing | ✅ COMPLETE |
 | **G8** | Video scanning with frame sampling | G1, ffmpeg/decord | ✅ COMPLETE |
@@ -377,7 +381,7 @@ Acceptance:
 | Phase | Milestones | Theme | Status |
 |---|---|---|---|
 | **Phase 2** | G0 + G1 + G2 + G9 | Image loading, parser wiring, baseline evals | ✅ **COMPLETE** |
-| **Phase 3** | G3 + G4 + G5 | LocateAnything worker + provider, OCR expansion | ✅ **COMPLETE** (fake-mode tested; real model load + Eagle2.5 not yet attempted) |
+| **Phase 3** | G3 + G4 + G5 | LocateAnything worker + provider, OCR expansion | ✅ **COMPLETE** (fake-mode tested; MLX LocateAnything real model benchmarked) |
 | **Phase 3.5** | Model registry + dual VLM provider + role-based routing | VLM provider separation, config-driven routing | ✅ **COMPLETE** |
 | **Phase 4** | G6 + G7 + G8 | Region, comparison, video | ✅ **COMPLETE** |
 | **Phase 5** | G10 + G11 + G12 | Non-coding tools, multi-provider, CLI | ✅ **COMPLETE** |

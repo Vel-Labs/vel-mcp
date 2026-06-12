@@ -27,6 +27,7 @@ export function parseLocateAnythingAnswer(answer: string, options: ParseLocateAn
       label,
       bboxNorm1000: coords,
       centerNorm1000: [Math.round((coords[0] + coords[2]) / 2), Math.round((coords[1] + coords[3]) / 2)],
+      uncertainty: "LocateAnything output did not include a numeric confidence score.",
       evidence: options.includeRawModelOutput ? { rawModelOutput: answer } : undefined
     };
     addPixels(result, options.imageSize);
@@ -41,6 +42,7 @@ export function parseLocateAnythingAnswer(answer: string, options: ParseLocateAn
       const result: LocalizationResult = {
         label,
         centerNorm1000: point,
+        uncertainty: "LocateAnything output did not include a numeric confidence score.",
         evidence: options.includeRawModelOutput ? { rawModelOutput: answer } : undefined
       };
       addPixels(result, options.imageSize);

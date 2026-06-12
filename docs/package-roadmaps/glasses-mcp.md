@@ -1,5 +1,14 @@
 # Package roadmap: `@vel/glasses-mcp`
 
+## Current validation note
+
+The implementation has advanced beyond parts of this original checklist. Treat `packages/glasses-mcp/ROADMAP.md` as the active package status. Current receipts:
+
+- `glasses-grounding` honors explicit `VEL_VISION_MODEL` and `VEL_VISION_PYTHON` overrides.
+- `vel_glasses_worker.main` keeps JSONL responses on stdout and redirects model/library stdout to stderr during inference.
+- `pnpm eval:locate-anything-smoke` writes `evals/glasses/runner/reports/locate-anything-smoke-report.json`.
+- `pnpm eval:locate-anything-quality` writes `evals/glasses/runner/reports/locate-anything-quality-report.json`; the latest local MLX run passed `bbox_iou` 0.985 and center distance 1 on `evals/glasses/fixtures/blue-button.png`.
+
 ## Purpose
 
 The Glasses MCP exposes a stable vision/perception interface to any MCP-capable harness. It is provider-agnostic and optimized for structured visual facts, not prose captions.
@@ -37,6 +46,7 @@ Every localization result emits:
   bboxPx?: [number, number, number, number];
   centerPx?: [number, number];
   confidence?: number;
+  uncertainty?: string;
   evidence?: { text?: string; rawModelOutput?: string; cropArtifactId?: string };
 }
 ```

@@ -71,6 +71,22 @@ describe("VelVisionProvider integration (fake worker)", () => {
     expect(result.data.matches[0].bboxNorm1000).toEqual([700, 80, 940, 150]);
   });
 
+  it("locate with labels and targetType=object maps to detect", async () => {
+    const result = await provider.locate({
+      image: { kind: "file_path", value: "/fake/test.png" },
+      query: "screen objects",
+      labels: ["button", "icon"],
+      targetType: "object",
+      outputType: "box",
+      maxResults: 10,
+      includeRawModelOutput: false
+    });
+
+    expect(result.data.matches).toHaveLength(1);
+    expect(result.data.matches[0].label).toBe("detected");
+    expect(result.data.matches[0].bboxNorm1000).toEqual([100, 100, 400, 400]);
+  });
+
   it("locate with outputType=point maps to point", async () => {
     const result = await provider.locate({
       image: { kind: "file_path", value: "/fake/test.png" },

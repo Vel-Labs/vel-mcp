@@ -81,16 +81,19 @@ program
   .description("Find an object, text, or GUI element in an image")
   .option("--target-type <type>", "Target type: any, object, text, gui, point, region", "any")
   .option("--output-type <type>", "Output type: box, point, both", "box")
+  .option("--labels <labels>", "Comma-separated object labels for dense detection")
+  .option("--include-raw-model-output", "Include raw provider output as evidence")
   .action(async (imagePath, query, opts) => {
     const { router } = await createServer();
     const provider = router.getForTool("locate", program.opts().provider);
     const result = await provider.locate({
       image: imageRef(imagePath),
       query,
+      labels: opts.labels ? String(opts.labels).split(",").map((label) => label.trim()).filter(Boolean) : undefined,
       targetType: opts.targetType,
       outputType: opts.outputType,
       maxResults: 10,
-      includeRawModelOutput: false,
+      includeRawModelOutput: Boolean(opts.includeRawModelOutput),
     });
     console.log(fmt(result.data));
   });
@@ -241,6 +244,73 @@ program
     const provider = router.get(providerId);
     const health = await (provider.healthCheck?.() ?? Promise.resolve(null));
     console.log(fmt({ provider: provider.id, health }));
+  });
+
+program
+  .command("doctor <target>")
+  .description("Run provider setup diagnostics")
+  .action(async (target) => {
+    if (target !== "locate-anything") {
+      console.error("Supported doctor target: locate-anything");
+      process.exit(1);
+    }
+    const { router } = await createServer();
+    const provider = router.get(program.opts().provider ?? "glasses-grounding");
+    const health = await (provider.healthCheck?.() ?? Promise.resolve(null));
+    const payload = {
+      schemaVersion: "2026-06-11",
+      provider: provider.id,
+      ok: health?.ok ?? true,
+      warnings: health?.warnings ?? [],
+      error: health?.error,
+      env: {
+        VEL_VISION_MODEL: process.env.VEL_VISION_MODEL,
+        VEL_VISION_PYTHON: process.env.VEL_VISION_PYTHON,
+        VEL_GLASSES_PROVIDER: process.env.VEL_GLASSES_PROVIDER
+      }
+    };
+    console.log(fmt(payload));
+    process.exit(payload.ok ? 0 : 1);
+  });
+
+program
+  .command("benchmark <target>")
+  .description("Run a real provider benchmark probe")
+  .requiredOption("--image <path>", "Image path")
+  .requiredOption("--query <text>", "Locate query")
+  .option("--target-type <type>", "Target type: any, object, text, gui, point, region", "any")
+  .option("--output-type <type>", "Output type: box, point, both", "box")
+  .option("--labels <labels>", "Comma-separated object labels")
+  .option("--include-raw-model-output", "Include raw provider output as evidence")
+  .action(async (target, opts) => {
+    if (target !== "locate-anything") {
+      console.error("Supported benchmark target: locate-anything");
+      process.exit(1);
+    }
+    const { router } = await createServer();
+    const provider = router.get(program.opts().provider ?? "glasses-grounding");
+    const started = Date.now();
+    const result = await provider.locate({
+      image: imageRef(opts.image),
+      query: opts.query,
+      labels: opts.labels ? String(opts.labels).split(",").map((label) => label.trim()).filter(Boolean) : undefined,
+      targetType: opts.targetType,
+      outputType: opts.outputType,
+      maxResults: 10,
+      includeRawModelOutput: Boolean(opts.includeRawModelOutput)
+    });
+    const payload = {
+      schemaVersion: "2026-06-11",
+      benchmark: "locate-anything.locate",
+      ok: result.data.matches.length > 0,
+      provider: result.provider,
+      timingMs: result.timingMs,
+      wallClockMs: Date.now() - started,
+      warnings: result.warnings,
+      result: result.data
+    };
+    console.log(fmt(payload));
+    process.exit(payload.ok ? 0 : 1);
   });
 
 program.parse();

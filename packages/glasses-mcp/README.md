@@ -14,7 +14,28 @@ Vision/OCR/grounding MCP package for VEL.
 ## Providers
 
 - `mock` — deterministic provider for tests and smoke checks.
-- `locate-anything` — NVIDIA Eagle / LocateAnything provider through Python JSONL worker. Disabled until dependencies are installed and license is accepted.
+- `glasses-grounding` — local MLX-VLM LocateAnything provider through the Python JSONL worker. Enabled when a grounding model is configured and runtime dependencies are installed.
+
+## Real Model Checks
+
+```bash
+python3.11 -m venv .vel/venvs/glasses-mlx
+.vel/venvs/glasses-mlx/bin/python -m pip install -e packages/glasses-mcp/workers/vel-worker
+
+VEL_VISION_PYTHON=$PWD/.vel/venvs/glasses-mlx/bin/python \
+VEL_VISION_MODEL=/absolute/path/to/LocateAnything-3B-bf16 \
+  node packages/glasses-mcp/dist/cli.js --provider glasses-grounding doctor locate-anything
+
+VEL_VISION_PYTHON=$PWD/.vel/venvs/glasses-mlx/bin/python \
+VEL_VISION_MODEL=/absolute/path/to/LocateAnything-3B-bf16 \
+  node packages/glasses-mcp/dist/cli.js --provider glasses-grounding benchmark locate-anything \
+    --image evals/glasses/fixtures/blue-button.png \
+    --query "blue button" \
+    --target-type object \
+    --labels "blue button"
+```
+
+`pnpm eval:locate-anything-smoke` and `pnpm eval:locate-anything-quality` run the corresponding eval reports after the same environment variables are set.
 
 ## Dev
 

@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import type { ArtifactStore, ArtifactMetadata } from "@vel/core";
+import type { ArtifactStore } from "@vel/core";
 
 export interface CropResult {
   cropArtifactId: string;

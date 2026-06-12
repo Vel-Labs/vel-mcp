@@ -8,6 +8,7 @@ describe("parseLocateAnythingAnswer", () => {
     expect(result.matches[0].label).toBe("Search");
     expect(result.matches[0].bboxNorm1000).toEqual([700, 80, 940, 150]);
     expect(result.matches[0].centerNorm1000).toEqual([820, 115]);
+    expect(result.matches[0].uncertainty).toBe("LocateAnything output did not include a numeric confidence score.");
   });
 
   it("parses multiple boxes", () => {
@@ -29,6 +30,7 @@ describe("parseLocateAnythingAnswer", () => {
     const result = parseLocateAnythingAnswer('<ref>point1</ref><box><300><400></box>');
     expect(result.matches).toHaveLength(1);
     expect(result.matches[0].centerNorm1000).toEqual([300, 400]);
+    expect(result.matches[0].uncertainty).toBe("LocateAnything output did not include a numeric confidence score.");
   });
 
   it("clamps out-of-range coordinates", () => {

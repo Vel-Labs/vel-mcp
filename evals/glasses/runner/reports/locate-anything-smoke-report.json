@@ -1,0 +1,28 @@
+{
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "tasks": [
+    {
+      "id": "locate-anything-search-smoke",
+      "taskType": "locate",
+      "pass": true,
+      "metrics": [
+        {
+          "name": "latency_ms",
+          "value": 2377,
+          "pass": true
+        }
+      ],
+      "durationMs": 2570,
+      "errors": []
+    }
+  ],
+  "meta": {
+    "runner": "@vel/glasses-evals",
+    "timestamp": "2026-06-12T02:23:41.575Z"
+  }
+}

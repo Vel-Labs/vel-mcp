@@ -5,7 +5,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**", "**/.commandcode/**"]
+    ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**", "**/.commandcode/**", "**/.venv/**", "**/venv/**"]
   },
   {
     files: ["**/*.ts", "**/*.tsx"],

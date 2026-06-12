@@ -4,7 +4,7 @@ const required = [
   "packages/core/src/index.ts",
   "packages/mcp-base/src/server.ts",
   "packages/glasses-mcp/src/server.ts",
-  "packages/glasses-mcp/workers/locate-anything/vel_locate_anything_worker/main.py",
+  "packages/glasses-mcp/workers/vel-worker/vel_glasses_worker/main.py",
   "docs/package-roadmaps/glasses-mcp.md",
   "evals/glasses/dataset.schema.json"
 ];

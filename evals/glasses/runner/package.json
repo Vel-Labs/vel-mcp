@@ -2,12 +2,18 @@
   "name": "@vel/glasses-evals",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "vel-glasses-eval": "dist/cli.js"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:mock": "node dist/cli.js --provider mock --dataset ../sample-tasks.jsonl --out-json reports/mock-report.json --out-md reports/mock-report.md --allow-failures",
+    "eval:locate-anything-smoke": "node dist/cli.js --provider glasses-grounding --dataset ../locate-anything-smoke.jsonl --out-json reports/locate-anything-smoke-report.json --out-md reports/locate-anything-smoke-report.md",
+    "eval:locate-anything-quality": "node dist/cli.js --provider glasses-grounding --dataset ../locate-anything-quality.jsonl --out-json reports/locate-anything-quality-report.json --out-md reports/locate-anything-quality-report.md"
   },
   "dependencies": {},
   "devDependencies": {

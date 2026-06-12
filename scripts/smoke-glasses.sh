@@ -46,7 +46,7 @@ SMOKE_IMG="smoke-test-$$.png"
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x02\x00\x00\x00\x90\x77\x53\xde\x00\x00\x00\x12IDAT\x78\x9c\x62\xf8\xcf\xc0\x00\x00\x00\x00\xff\xff\x03\x00\x1e\x00\x01\x1b\xfc\xd6\x9f\x00\x00\x00\x00IEND\xae\x42\x60\x82' > "$SMOKE_IMG"
 
 # Step 4: tools/call glasses.locate
-echo "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"glasses.locate\",\"arguments\":{\"image\":{\"kind\":\"file_path\",\"value\":\"$SMOKE_IMG\"},\"query\":\"button\",\"outputType\":\"box\",\"maxResults\":1}}}" > "$IN_FIFO"
+echo "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"glasses.locate\",\"arguments\":{\"provider\":\"mock\",\"image\":{\"kind\":\"file_path\",\"value\":\"$SMOKE_IMG\"},\"query\":\"button\",\"outputType\":\"box\",\"maxResults\":1}}}" > "$IN_FIFO"
 sleep 0.5
 
 # Step 4: validate the tools/call response

@@ -82,8 +82,11 @@ export interface EvalReport {
 export function evaluateLocate(pred: Record<string, unknown>, gold: Record<string, unknown>, metrics: string[]): EvalMetricResult[] {
   const results: EvalMetricResult[] = [];
   const predMatches = (pred.matches ?? []) as Array<Record<string, unknown>>;
-  if (predMatches.length === 0) {
-    return metrics.map((m) => ({ name: m, value: 0, pass: false }));
+  const timingMs = Number(pred.timingMs);
+  if (predMatches.length === 0 && metrics.some((m) => m !== "latency_ms")) {
+    return metrics.map((m) => m === "latency_ms"
+      ? { name: m, value: timingMs, pass: Number.isFinite(timingMs) }
+      : { name: m, value: 0, pass: false });
   }
 
   const best = predMatches[0] as Record<string, unknown>;
@@ -108,6 +111,10 @@ export function evaluateLocate(pred: Record<string, unknown>, gold: Record<strin
         const predCenter = best.centerNorm1000 as [number, number] | undefined;
         const pass = predCenter && goldCenter ? guiClickSuccess(predCenter, goldCenter) : false;
         results.push({ name: metric, value: pass ? 1 : 0, pass, threshold: 30 });
+        break;
+      }
+      case "latency_ms": {
+        results.push({ name: metric, value: timingMs, pass: Number.isFinite(timingMs) });
         break;
       }
       default:

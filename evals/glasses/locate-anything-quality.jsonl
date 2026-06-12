@@ -1,0 +1,1 @@
+{"id":"locate-anything-blue-button","taskType":"locate","tags":["object","locate-anything","quality"],"input":{"image":{"kind":"file_path","value":"fixtures/blue-button.png"},"query":"blue button","labels":["blue button"],"targetType":"object"},"expected":{"bboxNorm1000":[656,150,922,275],"centerNorm1000":[789,213]},"metrics":["bbox_iou","center_distance_norm1000"]}

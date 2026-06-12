@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any
 
@@ -176,30 +177,31 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return {"status": "ok", "model": model_id}
 
     start = time.perf_counter()
-    worker = load_worker()
-    image = open_image(request["image"])
-    query = request.get("query") or ""
+    with redirect_stdout(sys.stderr):
+        worker = load_worker()
+        image = open_image(request["image"])
+        query = request.get("query") or ""
 
-    if op == "detect":
-        labels = request.get("labels") or ([query] if query else [])
-        answer = worker.detect(image, labels)
-    elif op == "ground_multi":
-        answer = worker.ground_multi(image, query)
-    elif op == "detect_text":
-        answer = worker.detect_text(image)
-    elif op == "ground_gui":
-        answer = worker.ground_gui(image, query, output_type=request.get("outputType", "box"))
-    elif op == "point":
-        answer = worker.point(image, query)
-    elif op == "inspect":
-        answer = worker.detect_text(image)
-    elif op == "describe":
-        prompt = build_inspect_prompt(request)
-        answer = worker.describe(image, prompt)
-    elif op == "ask":
-        answer = worker.ask(image, query)
-    else:
-        raise ValueError(f"Unsupported op: {op}")
+        if op == "detect":
+            labels = request.get("labels") or ([query] if query else [])
+            answer = worker.detect(image, labels)
+        elif op == "ground_multi":
+            answer = worker.ground_multi(image, query)
+        elif op == "detect_text":
+            answer = worker.detect_text(image)
+        elif op == "ground_gui":
+            answer = worker.ground_gui(image, query, output_type=request.get("outputType", "box"))
+        elif op == "point":
+            answer = worker.point(image, query)
+        elif op == "inspect":
+            answer = worker.detect_text(image)
+        elif op == "describe":
+            prompt = build_inspect_prompt(request)
+            answer = worker.describe(image, prompt)
+        elif op == "ask":
+            answer = worker.ask(image, query)
+        else:
+            raise ValueError(f"Unsupported op: {op}")
 
     return {"answer": answer, "timingMs": int((time.perf_counter() - start) * 1000)}
 
