@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGlassesServer } from "./server.js";
 import { loadVelConfig } from "@vel/core";
 import { videoScanTool } from "./tools/videoScan.js";
+import { discoverModels } from "./services/modelDiscovery.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
@@ -355,29 +357,34 @@ program
 
 program
   .command("install <target>")
-  .description("Print machine-ready MCP setup fields for Codex and other local agent clients")
+  .description("Print or write machine-ready MCP setup for Codex and generic local agent clients")
   .option("--project-dir <path>", "Project working directory for the MCP client", process.cwd())
   .option("--server-name <name>", "MCP server name", "vel-glasses")
   .option("--glasses-provider <id>", "Provider id: mock or glasses-grounding")
   .option("--vision-python <path>", "Python executable for the local vision worker")
   .option("--vision-model <path-or-id>", "Local model path or Hugging Face model id")
   .option("--format <format>", "Output format: human or json", "human")
+  .option("--write", "Write a local .mcp.json file into project-dir")
   .action(async (target, opts) => {
-    if (target !== "codex") {
-      console.error("Supported install target: codex");
+    if (target !== "codex" && target !== "mcp") {
+      console.error("Supported install targets: codex, mcp");
       process.exit(1);
     }
-    const payload = buildCodexInstallPayload({
+    const payload = buildMcpInstallPayload({
+      target,
       projectDir: opts.projectDir,
       serverName: opts.serverName,
       provider: opts.glassesProvider ?? program.opts().provider ?? process.env.VEL_GLASSES_PROVIDER ?? "glasses-grounding",
       visionPython: opts.visionPython,
       visionModel: opts.visionModel,
     });
+    if (opts.write) {
+      await writeLocalMcpConfig(payload);
+    }
     if (opts.format === "json") {
       console.log(fmt(payload));
     } else if (opts.format === "human") {
-      console.log(renderCodexInstall(payload));
+      console.log(renderMcpInstall(payload));
     } else {
       throw new Error("--format must be human or json");
     }
@@ -434,7 +441,8 @@ program
 
 program.parse();
 
-interface CodexInstallOptions {
+interface McpInstallOptions {
+  target: string;
   projectDir: string;
   serverName: string;
   provider: string;
@@ -442,7 +450,7 @@ interface CodexInstallOptions {
   visionModel?: string;
 }
 
-function buildCodexInstallPayload(opts: CodexInstallOptions) {
+function buildMcpInstallPayload(opts: McpInstallOptions) {
   const projectDir = resolve(opts.projectDir);
   const provider = opts.provider;
   const likelyModelPath = resolve(homedir(), "30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16");
@@ -471,9 +479,10 @@ function buildCodexInstallPayload(opts: CodexInstallOptions) {
   };
   return {
     schemaVersion: "2026-06-14",
-    target: "codex",
+    target: opts.target,
     dryRun: true,
     codexForm,
+    localManifest: resolve(projectDir, ".mcp.json"),
     mcpJson: {
       mcpServers: {
         [opts.serverName]: {
@@ -491,6 +500,7 @@ function buildCodexInstallPayload(opts: CodexInstallOptions) {
       { name: "demoDashboard", ok: existsSync(resolve(repoRoot, "examples/glasses-demo/dashboard.png")), detail: resolve(repoRoot, "examples/glasses-demo/dashboard.png") },
       { name: "demoVideo", ok: existsSync(resolve(repoRoot, "examples/glasses-demo/button-appears.mp4")), detail: resolve(repoRoot, "examples/glasses-demo/button-appears.mp4") },
     ],
+    modelDiscovery: summarizeModelDiscovery(),
     nextPrompts: {
       image: `Use vel-glasses. Look at ${resolve(repoRoot, "examples/glasses-demo/dashboard.png")}. What should I click to approve the deployment? Return the target label and normalized coordinates. Do not click anything.`,
       video: `Use vel-glasses. Scan ${resolve(repoRoot, "examples/glasses-demo/button-appears.mp4")}. When does the blue Approve button become visible? Return timestamps and frame references.`,
@@ -498,17 +508,53 @@ function buildCodexInstallPayload(opts: CodexInstallOptions) {
   };
 }
 
-function renderCodexInstall(payload: ReturnType<typeof buildCodexInstallPayload>): string {
+async function writeLocalMcpConfig(payload: ReturnType<typeof buildMcpInstallPayload>): Promise<void> {
+  const path = payload.localManifest;
+  if (!path) throw new Error("No local manifest path available.");
+  await writeFile(path, `${JSON.stringify(payload.mcpJson, null, 2)}\n`, { flag: "wx" });
+}
+
+function summarizeModelDiscovery() {
+  const discovery = discoverModels();
+  return discovery.models.map((model) => ({
+    id: model.id,
+    displayName: model.displayName,
+    role: model.role,
+    kind: model.kind,
+    status: model.status,
+    runtimeReady: model.runtimeReady,
+    path: model.path,
+    sizeGb: model.sizeGb,
+    licenseWarning: model.licenseWarning,
+    huggingFaceUrl: `https://huggingface.co/${model.id}`,
+    setupInstructions: model.setupInstructions,
+  }));
+}
+
+function renderMcpInstall(payload: ReturnType<typeof buildMcpInstallPayload>): string {
   const envLines = Object.entries(payload.codexForm.environmentVariables)
     .map(([key, value]) => `  ${key} = ${value}`)
     .join("\n");
   const checkLines = payload.checks
     .map((check) => `  ${check.ok ? "OK" : "MISSING"} ${check.name}: ${check.detail}`)
     .join("\n");
+  const modelLines = payload.modelDiscovery
+    .map((model) => [
+      `  ${model.runtimeReady ? "READY" : model.status === "available" ? "FOUND" : "MISSING"} ${model.displayName} (${model.id})`,
+      `    role: ${model.role}; kind: ${model.kind}; size: ${model.sizeGb ?? "unknown"} GB`,
+      `    link: ${model.huggingFaceUrl}`,
+      model.licenseWarning ? `    license: ${model.licenseWarning}` : undefined,
+      model.path ? `    path: ${model.path}` : undefined,
+    ].filter(Boolean).join("\n"))
+    .join("\n");
+  const title = payload.target === "codex" ? "VEL Glasses Codex MCP setup" : "VEL Glasses generic MCP setup";
+  const codexIntro = payload.target === "codex"
+    ? "Paste these values into Codex > Connect to a custom MCP:"
+    : "Use this STDIO MCP server with any client that accepts mcpServers JSON:";
   return [
-    "VEL Glasses Codex MCP setup",
+    title,
     "",
-    "Paste these values into Codex > Connect to a custom MCP:",
+    codexIntro,
     "",
     `Name: ${payload.codexForm.name}`,
     "Transport: STDIO",
@@ -527,12 +573,21 @@ function renderCodexInstall(payload: ReturnType<typeof buildCodexInstallPayload>
     "Machine-readable MCP JSON:",
     JSON.stringify(payload.mcpJson, null, 2),
     "",
+    `Local manifest path: ${payload.localManifest}`,
+    "Write it with:",
+    `  node packages/glasses-mcp/dist/cli.js install mcp --project-dir ${payload.codexForm.workingDirectory} --write`,
+    "",
+    "Local vision model discovery:",
+    modelLines,
+    "",
     "First image prompt:",
     payload.nextPrompts.image,
     "",
     "First video prompt:",
     payload.nextPrompts.video,
     "",
-    "This command is dry-run only; it does not write Codex settings.",
+    payload.target === "codex"
+      ? "This command is dry-run only; it does not write Codex settings."
+      : "This command is dry-run unless --write is passed; --write creates .mcp.json and refuses to overwrite an existing file.",
   ].join("\n");
 }

@@ -17,6 +17,15 @@ node packages/glasses-mcp/dist/cli.js install codex --project-dir /path/to/proje
 
 Use `--glasses-provider mock` for a dependency-free mock setup, or leave the default `glasses-grounding` for the local MLX vision worker.
 
+For generic MCP clients and local harness discovery, generate or write a project-local `.mcp.json`:
+
+```bash
+node packages/glasses-mcp/dist/cli.js install mcp --project-dir /path/to/project
+node packages/glasses-mcp/dist/cli.js install mcp --project-dir /path/to/project --write
+```
+
+The `--write` form creates `/path/to/project/.mcp.json` and refuses to overwrite an existing file. The wizard also reports local vision-model readiness and Hugging Face links for suggested models.
+
 ```bash
 pnpm --dir /absolute/path/to/vel-mcp --filter @vel/glasses-mcp dev
 ```

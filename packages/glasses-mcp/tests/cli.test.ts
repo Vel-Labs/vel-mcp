@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
 const CLI = resolve(__dirname, "../dist/cli.js");
@@ -49,6 +51,26 @@ describe("G12 — CLI", () => {
     expect(parsed.codexForm.arguments).toContain("@vel/glasses-mcp");
     expect(parsed.codexForm.environmentVariables.VEL_GLASSES_PROVIDER).toBe("mock");
     expect(parsed.mcpJson.mcpServers["vel-glasses"]).toBeDefined();
+  });
+
+  it("vel-glasses install mcp emits generic local manifest guidance", () => {
+    const out = execSync(`node ${CLI} install mcp --glasses-provider mock --project-dir /tmp`, { encoding: "utf-8" });
+    expect(out).toContain("VEL Glasses generic MCP setup");
+    expect(out).toContain("Machine-readable MCP JSON");
+    expect(out).toContain("Local manifest path: /tmp/.mcp.json");
+    expect(out).toContain("Local vision model discovery");
+  });
+
+  it("vel-glasses install mcp can write .mcp.json", () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "vel-mcp-install-test-"));
+    try {
+      execSync(`node ${CLI} install mcp --glasses-provider mock --project-dir ${dir} --write --format json`, { encoding: "utf-8" });
+      const manifest = JSON.parse(readFileSync(resolve(dir, ".mcp.json"), "utf-8"));
+      expect(manifest.mcpServers["vel-glasses"].command).toBe("pnpm");
+      expect(manifest.mcpServers["vel-glasses"].env.VEL_GLASSES_PROVIDER).toBe("mock");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("vel-glasses health checks mock provider", () => {
