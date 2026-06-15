@@ -35,6 +35,7 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
   const audit = opts.auditStore ? new AuditLog(opts.auditStore) : undefined;
   const auditOpts = { auditLog: audit, serverPackage: "glasses" };
   const supervisor = new WorkerSupervisor();
+  const config = withEnvVisionDefaults(opts.config);
 
   const artifactStore = new ArtifactStore(opts.artifactStore ?? resolve(homedir(), ".vel/artifacts"));
   const pathPolicy = new PathPolicy(opts.allowedImageRoots ?? [process.cwd(), resolve(homedir(), "vel", "glasses", "inputs")]);
@@ -47,8 +48,8 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
     warnFileSizeMb: opts.warnFileSizeMb ?? 25
   });
 
-  const modelRegistry = new ModelRegistry(opts.config);
-  const defaultProvider = opts.config?.defaultProvider as string | undefined
+  const modelRegistry = new ModelRegistry(config);
+  const defaultProvider = config?.defaultProvider as string | undefined
     ?? process.env.VEL_GLASSES_PROVIDER
     ?? "mock";
 
@@ -59,7 +60,7 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
 
   router.register(new MockVisionProvider(), { priority: 10, enabled: true });
 
-  const providersConfig = (opts.config?.providers ?? {}) as Record<string, Record<string, unknown>>;
+  const providersConfig = (config?.providers ?? {}) as Record<string, Record<string, unknown>>;
 
   const groundingResolved = modelRegistry.resolveModelForRole("grounding");
   if (groundingResolved) {
@@ -125,4 +126,44 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
   registerVelTool(server, listProvidersTool(router), auditOpts);
   registerVelTool(server, setupTool(router), auditOpts);
   return { server, router, audit, supervisor, modelRegistry, imageLoader, artifactStore };
+}
+
+function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!process.env.VEL_VISION_MODEL) return config;
+
+  const models = Array.isArray(config?.models) ? [...config.models] : [];
+  const roles = { ...((config?.roles as Record<string, unknown> | undefined) ?? {}) };
+  const toolToRole = { ...((config?.toolToRole as Record<string, string> | undefined) ?? {}) };
+  const providers = { ...((config?.providers as Record<string, Record<string, unknown>> | undefined) ?? {}) };
+
+  if (!models.some((model) => (model as Record<string, unknown>).id === process.env.VEL_VISION_MODEL)) {
+    models.push({
+      id: process.env.VEL_VISION_MODEL,
+      displayName: "VEL_VISION_MODEL",
+      kind: "mlx-vlm",
+      role: "grounding",
+      enabled: true,
+      taskAffinity: ["locate", "ocr", "gui"],
+    });
+  }
+
+  roles.grounding ??= { preferred: process.env.VEL_VISION_MODEL, fallback: [] };
+  toolToRole.locate ??= "grounding";
+  toolToRole.ocr ??= "grounding";
+  toolToRole.video_scan ??= "grounding";
+  providers["glasses-grounding"] ??= {};
+  if (process.env.VEL_VISION_PYTHON && !providers["glasses-grounding"].python) {
+    providers["glasses-grounding"] = {
+      ...providers["glasses-grounding"],
+      python: process.env.VEL_VISION_PYTHON,
+    };
+  }
+
+  return {
+    ...(config ?? {}),
+    models,
+    roles,
+    toolToRole,
+    providers,
+  };
 }
