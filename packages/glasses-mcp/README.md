@@ -58,3 +58,5 @@ pnpm --filter @vel/glasses-mcp dev
 The server uses stdio by default. Do not log to stdout.
 
 See `ROADMAP.md` for the implementation sequence.
+
+For user-facing screenshot and design-review flows, see [`docs/glasses-ux-workflows.md`](../../docs/glasses-ux-workflows.md).

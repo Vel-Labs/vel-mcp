@@ -4,6 +4,8 @@
 
 Glasses is model-role-based, not model-specific. Users declare models by **role** (general_vlm, grounding, ocr, temporal_vlm) and Glasses routes tools to the right model. Swapping models is a config change, never a code change.
 
+For agent-facing visual review sequences, see `docs/glasses-ux-workflows.md`.
+
 ## Lanes
 
 ### Image Lane
