@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "vel-glasses": {
+      "transport": "stdio",
+      "enabled": true,
+      "command": "pnpm",
+      "args": ["--dir", "/Users/steven/Workspace/40_Code/projects/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
+      "env": {
+        "VEL_GLASSES_PROVIDER": "glasses-grounding",
+        "VEL_ALLOWED_IMAGE_ROOTS": "[\"/Users/steven/Workspace/40_Code/projects/test-project\",\"/Users/steven/Workspace/40_Code/projects/vel-mcp\",\"/Users/steven/vel/glasses/inputs\"]",
+        "VEL_VISION_PYTHON": "/Users/steven/Workspace/40_Code/projects/vel-mcp/.vel/venvs/glasses-mlx/bin/python",
+        "VEL_VISION_MODEL": "/Users/steven/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16",
+        "VEL_VISION_VLM_MODEL": "/Users/steven/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-8bit"
+      }
+    }
+  }
+}

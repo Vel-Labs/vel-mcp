@@ -11,16 +11,19 @@ const installerCli = resolve(repoRoot, "packages/installer/dist/cli.js");
 const [target = "opencode", ...rawRest] = process.argv.slice(2);
 const rest = rawRest[0] === "--" ? rawRest.slice(1) : rawRest;
 
-if (target === "--help" || target === "-h" || !["opencode", "codex", "mcp"].includes(target)) {
+if (target === "--help" || target === "-h" || !["opencode", "codex", "mcp", "commandcode"].includes(target)) {
   console.log([
     "Usage:",
     "  node scripts/setup-mcp.mjs opencode --project-dir /path/to/project [--write]",
+    "  node scripts/setup-mcp.mjs commandcode --project-dir /path/to/project [--write]",
     "  node scripts/setup-mcp.mjs codex --project-dir /path/to/project",
     "  node scripts/setup-mcp.mjs mcp --project-dir /path/to/project --write",
     "",
     "Examples:",
     "  node scripts/setup-mcp.mjs opencode --project-dir .",
+    "  node scripts/setup-mcp.mjs commandcode --project-dir .",
     "  pnpm setup:opencode -- --project-dir .",
+    "  pnpm setup:commandcode -- --project-dir .",
   ].join("\n"));
   process.exit(target === "--help" || target === "-h" ? 0 : 1);
 }
@@ -35,7 +38,7 @@ const installerArgs = ["install", target, "--kit-dir", repoRoot, ...rest];
 if (!installerArgs.includes("--project-dir")) {
   installerArgs.push("--project-dir", process.cwd());
 }
-if (target === "opencode" && !installerArgs.includes("--write")) {
+if ((target === "opencode" || target === "commandcode") && !installerArgs.includes("--write")) {
   installerArgs.push("--write");
 }
 

@@ -12,7 +12,7 @@ const AGENT_INSTRUCTIONS_BEGIN = "<!-- VEL-GLASSES:BEGIN -->";
 const AGENT_INSTRUCTIONS_END = "<!-- VEL-GLASSES:END -->";
 
 interface InstallOptions {
-  target: "mcp" | "codex" | "opencode";
+  target: InstallTarget;
   projectDir: string;
   kitDir: string;
   repoUrl: string;
@@ -43,7 +43,7 @@ interface ModelSuggestion {
 
 interface InstallPayload {
   schemaVersion: string;
-  target: "mcp" | "codex" | "opencode";
+  target: InstallTarget;
   modelRoles: Array<{
     role: string;
     purpose: string;
@@ -83,6 +83,16 @@ interface InstallPayload {
       env: Record<string, string>;
     }>;
   };
+  commandCodeJson: {
+    mcpServers: Record<string, {
+      transport: "stdio";
+      enabled: boolean;
+      command: string;
+      args: string[];
+      env: Record<string, string>;
+    }>;
+  };
+  commandCodeAddCommand: string;
   opencodeJson: {
     $schema: string;
     mcp: Record<string, {
@@ -102,6 +112,8 @@ interface InstallPayload {
     video: string;
   };
 }
+
+type InstallTarget = "mcp" | "codex" | "opencode" | "commandcode";
 
 const MODEL_SUGGESTIONS = [
   {
@@ -164,7 +176,7 @@ const MODEL_SUGGESTIONS = [
 
 export function parseArgs(argv: string[]): InstallOptions {
   const [command, target, ...rest] = argv;
-  if (command !== "install" || (target !== "mcp" && target !== "codex" && target !== "opencode")) {
+  if (command !== "install" || !isInstallTarget(target)) {
     throw new Error(helpText());
   }
 
@@ -262,6 +274,17 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
 
   const args = ["--dir", opts.kitDir, "--filter", "@vel/glasses-mcp", "dev"];
   const command = ["pnpm", ...args];
+  const commandCodeJson: InstallPayload["commandCodeJson"] = {
+    mcpServers: {
+      [opts.serverName]: {
+        transport: "stdio",
+        enabled: true,
+        command: "pnpm",
+        args,
+        env,
+      },
+    },
+  };
   return {
     schemaVersion: "2026-06-15",
     target: opts.target,
@@ -300,6 +323,8 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
         },
       },
     },
+    commandCodeJson,
+    commandCodeAddCommand: commandCodeCliCommand(opts.serverName, env, args),
     opencodeJson: {
       $schema: "https://opencode.ai/config.json",
       mcp: {
@@ -352,7 +377,9 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     ? "VEL MCP Codex setup wizard"
     : payload.target === "opencode"
       ? "VEL MCP OpenCode setup wizard"
-      : "VEL MCP generic setup wizard";
+      : payload.target === "commandcode"
+        ? "VEL MCP CommandCode setup wizard"
+        : "VEL MCP generic setup wizard";
   const restartLines = payload.restartInstructions.map((line) => `  ${line}`).join("\n");
 
   return [
@@ -381,6 +408,12 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     "Machine-readable MCP JSON:",
     JSON.stringify(payload.mcpJson, null, 2),
     "",
+    "CommandCode project .mcp.json:",
+    JSON.stringify(payload.commandCodeJson, null, 2),
+    "",
+    "CommandCode CLI equivalent:",
+    payload.commandCodeAddCommand,
+    "",
     "OpenCode JSON:",
     JSON.stringify(payload.opencodeJson, null, 2),
     "",
@@ -390,6 +423,7 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     `Agent instructions path: ${payload.agentInstructionsPath}`,
     `Write it with: vel-mcp install mcp --project-dir ${payload.codexForm.workingDirectory} --write`,
     `Write OpenCode config with: vel-mcp install opencode --project-dir ${payload.codexForm.workingDirectory} --write`,
+    `Write CommandCode config with: vel-mcp install commandcode --project-dir ${payload.codexForm.workingDirectory} --write`,
     "",
     "After installing:",
     restartLines,
@@ -452,6 +486,21 @@ function bootstrap(opts: InstallOptions): void {
 
 export function writeManifest(path: string, mcpJson: unknown): void {
   writeFileSync(path, `${JSON.stringify(mcpJson, null, 2)}\n`, { flag: "wx" });
+}
+
+export function writeCommandCodeConfig(path: string, commandCodeJson: unknown): void {
+  const incoming = commandCodeJson as { mcpServers?: Record<string, unknown> };
+  const existing = existsSync(path)
+    ? JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>
+    : {};
+  const merged = {
+    ...existing,
+    mcpServers: {
+      ...(existing.mcpServers as Record<string, unknown> | undefined ?? {}),
+      ...(incoming.mcpServers ?? {}),
+    },
+  };
+  writeFileSync(path, `${JSON.stringify(merged, null, 2)}\n`);
 }
 
 export function writeOpenCodeConfig(path: string, opencodeJson: unknown): void {
@@ -558,6 +607,18 @@ function bootstrapCommands(opts: InstallOptions): string[] {
   return commands;
 }
 
+function commandCodeCliCommand(serverName: string, env: Record<string, string>, args: string[]): string {
+  const envArgs = Object.entries(env).flatMap(([key, value]) => ["--env", `${key}=${value}`]);
+  return ["cmd", "mcp", "add", "--scope", "project", ...envArgs, serverName, "--", "pnpm", ...args]
+    .map(shellQuote)
+    .join(" ");
+}
+
+function shellQuote(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
 function discoverLocalModels(activeModel: string, activeVlmModel?: string): ModelSuggestion[] {
   return MODEL_SUGGESTIONS.map((model) => {
     const path = modelPath(model.id);
@@ -621,11 +682,13 @@ export function helpText(): string {
     "  vel-mcp install mcp [--project-dir path] [--write] [--bootstrap]",
     "  vel-mcp install codex [--project-dir path] [--vision-vlm-model path] [--format human|json]",
     "  vel-mcp install opencode [--project-dir path] [--vision-vlm-model path] [--write] [--format human|json]",
+    "  vel-mcp install commandcode [--project-dir path] [--vision-vlm-model path] [--write] [--format human|json]",
     "",
     "Examples:",
     "  npx @vel/mcp install mcp --project-dir . --bootstrap --write",
     "  pnpm dlx @vel/mcp install codex --project-dir .",
     "  pnpm dlx @vel/mcp install opencode --project-dir . --write",
+    "  pnpm dlx @vel/mcp install commandcode --project-dir . --write",
   ].join("\n");
 }
 
@@ -638,6 +701,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (opts.bootstrap) bootstrap(opts);
   const payload = buildInstallPayload(opts);
   if (opts.write && opts.target === "opencode") writeOpenCodeConfig(payload.opencodeConfigPath, payload.opencodeJson);
+  else if (opts.write && opts.target === "commandcode") writeCommandCodeConfig(payload.localManifest, payload.commandCodeJson);
   else if (opts.write) writeManifest(payload.localManifest, payload.mcpJson);
   if (opts.write) {
     writeAgentSkill(payload.agentSkillPath, payload.agentSkill);
@@ -652,6 +716,12 @@ function escapeRegExp(value: string): string {
 }
 
 function restartInstructions(target: InstallOptions["target"]): string[] {
+  if (target === "commandcode") {
+    return [
+      "Restart CommandCode or open `/mcp` in the project and confirm vel-glasses is enabled.",
+      "Run `cmd mcp list` from the target project and confirm vel-glasses appears with project scope.",
+    ];
+  }
   if (target === "opencode") {
     return [
       "Close and reopen the entire OpenCode process; starting a new chat is not enough.",
@@ -668,6 +738,10 @@ function restartInstructions(target: InstallOptions["target"]): string[] {
     "Restart or reconnect the MCP client so it reloads local server configuration.",
     "Confirm the client lists vel-glasses before asking it to inspect images or video.",
   ];
+}
+
+function isInstallTarget(value: string | undefined): value is InstallTarget {
+  return value === "mcp" || value === "codex" || value === "opencode" || value === "commandcode";
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

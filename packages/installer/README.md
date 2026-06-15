@@ -8,6 +8,7 @@ From a cloned `vel-mcp` repo, prefer the root setup wrapper:
 
 ```bash
 pnpm setup:opencode -- --project-dir /path/to/project
+pnpm setup:commandcode -- --project-dir /path/to/project
 pnpm setup:codex -- --project-dir /path/to/project
 pnpm setup:mcp -- --project-dir /path/to/project --write
 ```
@@ -38,10 +39,17 @@ Write an OpenCode project config:
 pnpm dlx @vel/mcp install opencode --project-dir . --write
 ```
 
+Write a CommandCode project `.mcp.json`:
+
+```bash
+pnpm dlx @vel/mcp install commandcode --project-dir . --write
+```
+
 ## What the wizard emits
 
 - STDIO MCP launch fields for clients such as Codex.
 - An OpenCode-native `opencode.json` with `mcp.vel-glasses`, `cwd`, timeout, and environment.
+- A CommandCode project `.mcp.json` with `mcpServers.vel-glasses`, `transport: "stdio"`, `enabled: true`, and the same model environment.
 - A generic `mcpServers` JSON manifest for clients that discover project-local `.mcp.json`.
 - A project-local `.vel/skills/vel-glasses/SKILL.md` guidance file and managed `AGENTS.md` pointer so coding agents can translate natural user requests into the right Glasses tool calls.
 - Readiness checks for the kit checkout, project directory, Python worker, and local vision model path.
@@ -55,6 +63,14 @@ The wizard is dry-run-first. It only clones/builds the kit with `--bootstrap`, a
 When `--write` is used, the wizard also writes the local skill guidance file and inserts or updates a marker-bounded VEL section in `AGENTS.md`. That guidance is deliberately human-readable and machine-oriented: it teaches an agent to use `glasses.review_visual` for normal screenshot review, `glasses.locate` for targets and click coordinates, `glasses.ocr` for text-heavy images, and `glasses.capture_url` before reviewing a URL or localhost page. Users should be able to ask natural questions like "look at this screenshot and focus on the dialogue box" instead of naming MCP methods.
 
 OpenCode must be closed and reopened after changing MCP config; starting a new chat in the same process is not enough.
+
+CommandCode can also add the server through its CLI:
+
+```bash
+cmd mcp add --scope project --env KEY=value vel-glasses -- pnpm --dir /path/to/vel-mcp --filter @vel/glasses-mcp dev
+```
+
+The installer prints the full command with the detected VEL environment. After writing config, run `cmd mcp list` or open `/mcp` in CommandCode from the target project.
 
 ## Model roles
 

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildInstallPayload, helpText, parseArgs, renderInstall, writeAgentInstructions, writeAgentSkill, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
+import { buildInstallPayload, helpText, parseArgs, renderInstall, writeAgentInstructions, writeAgentSkill, writeCommandCodeConfig, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
 
 describe("@vel/mcp installer", () => {
   it("parses npx-style generic MCP install options", () => {
@@ -127,6 +127,29 @@ describe("@vel/mcp installer", () => {
     expect(payload.restartInstructions.some((line) => line.includes("Close and reopen"))).toBe(true);
   });
 
+  it("builds CommandCode project MCP config and CLI guidance", () => {
+    const payload = buildInstallPayload(parseArgs([
+      "install",
+      "commandcode",
+      "--project-dir",
+      "/tmp/example-project",
+      "--kit-dir",
+      process.cwd(),
+      "--glasses-provider",
+      "mock",
+    ]));
+
+    expect(payload.target).toBe("commandcode");
+    expect(payload.commandCodeJson.mcpServers["vel-glasses"].transport).toBe("stdio");
+    expect(payload.commandCodeJson.mcpServers["vel-glasses"].enabled).toBe(true);
+    expect(payload.commandCodeJson.mcpServers["vel-glasses"].command).toBe("pnpm");
+    expect(payload.commandCodeJson.mcpServers["vel-glasses"].args).toEqual(["--dir", process.cwd(), "--filter", "@vel/glasses-mcp", "dev"]);
+    expect(payload.localManifest).toBe("/tmp/example-project/.mcp.json");
+    expect(payload.commandCodeAddCommand).toContain("cmd mcp add --scope project");
+    expect(payload.commandCodeAddCommand).toContain("vel-glasses -- pnpm");
+    expect(payload.restartInstructions.some((line) => line.includes("cmd mcp list"))).toBe(true);
+  });
+
   it("renders human wizard output with first image and video prompts", () => {
     const payload = buildInstallPayload(parseArgs([
       "install",
@@ -145,6 +168,9 @@ describe("@vel/mcp installer", () => {
     expect(out).toContain("Model roles:");
     expect(out).toContain("VEL_VISION_VLM_MODEL");
     expect(out).toContain("Machine-readable MCP JSON:");
+    expect(out).toContain("CommandCode project .mcp.json:");
+    expect(out).toContain("CommandCode CLI equivalent:");
+    expect(out).toContain("Write CommandCode config with:");
     expect(out).toContain("First image prompt:");
     expect(out).toContain("examples/glasses-demo/dashboard.png");
     expect(out).toContain("First video prompt:");
@@ -258,10 +284,47 @@ describe("@vel/mcp installer", () => {
     }
   });
 
+  it("merges CommandCode .mcp.json without removing existing servers", () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "vel-mcp-commandcode-test-"));
+    const configPath = resolve(dir, ".mcp.json");
+    try {
+      writeCommandCodeConfig(configPath, {
+        mcpServers: {
+          existing: {
+            transport: "stdio",
+            enabled: true,
+            command: "echo",
+            args: ["ok"],
+          },
+        },
+      });
+
+      const payload = buildInstallPayload(parseArgs([
+        "install",
+        "commandcode",
+        "--project-dir",
+        dir,
+        "--kit-dir",
+        process.cwd(),
+        "--glasses-provider",
+        "mock",
+      ]));
+
+      writeCommandCodeConfig(configPath, payload.commandCodeJson);
+      const config = JSON.parse(readFileSync(configPath, "utf-8"));
+      expect(config.mcpServers.existing.command).toBe("echo");
+      expect(config.mcpServers["vel-glasses"].transport).toBe("stdio");
+      expect(config.mcpServers["vel-glasses"].enabled).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("documents npx and pnpm dlx usage", () => {
     const out = helpText();
     expect(out).toContain("npx @vel/mcp install mcp");
     expect(out).toContain("pnpm dlx @vel/mcp install codex");
     expect(out).toContain("pnpm dlx @vel/mcp install opencode");
+    expect(out).toContain("pnpm dlx @vel/mcp install commandcode");
   });
 });

@@ -13,6 +13,7 @@
     "setup:mcp": "node scripts/setup-mcp.mjs mcp",
     "setup:codex": "node scripts/setup-mcp.mjs codex",
     "setup:opencode": "node scripts/setup-mcp.mjs opencode",
+    "setup:commandcode": "node scripts/setup-mcp.mjs commandcode",
     "dev:glasses": "pnpm --filter @vel/glasses-mcp dev",
     "smoke:glasses": "bash scripts/smoke-glasses.sh",
     "eval:glasses": "pnpm --filter @vel/glasses-evals eval:mock",
