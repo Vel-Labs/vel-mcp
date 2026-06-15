@@ -31,6 +31,26 @@ describe("G12 — CLI", () => {
     expect(parsed.commands.some((cmd: string) => cmd.includes("doctor locate-anything"))).toBe(true);
   });
 
+  it("vel-glasses install codex prints Codex form fields", () => {
+    const out = execSync(`node ${CLI} install codex --glasses-provider mock --project-dir /tmp`, { encoding: "utf-8" });
+    expect(out).toContain("VEL Glasses Codex MCP setup");
+    expect(out).toContain("Transport: STDIO");
+    expect(out).toContain("Command to launch: pnpm");
+    expect(out).toContain("Working directory: /tmp");
+    expect(out).toContain("Machine-readable MCP JSON");
+  });
+
+  it("vel-glasses install codex can emit machine-readable JSON", () => {
+    const out = execSync(`node ${CLI} install codex --glasses-provider mock --project-dir /tmp --format json`, { encoding: "utf-8" });
+    const parsed = JSON.parse(out);
+    expect(parsed.target).toBe("codex");
+    expect(parsed.codexForm.transport).toBe("stdio");
+    expect(parsed.codexForm.command).toBe("pnpm");
+    expect(parsed.codexForm.arguments).toContain("@vel/glasses-mcp");
+    expect(parsed.codexForm.environmentVariables.VEL_GLASSES_PROVIDER).toBe("mock");
+    expect(parsed.mcpJson.mcpServers["vel-glasses"]).toBeDefined();
+  });
+
   it("vel-glasses health checks mock provider", () => {
     const out = execSync(`node ${CLI} health mock`, { encoding: "utf-8" });
     const parsed = JSON.parse(out);

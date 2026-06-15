@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createGlassesServer } from "./server.js";
 import { loadVelConfig } from "@vel/core";
 import { videoScanTool } from "./tools/videoScan.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(__dirname, "../../..");
 
 async function createServer() {
   let config: Record<string, unknown> | undefined;
@@ -347,6 +354,36 @@ program
   });
 
 program
+  .command("install <target>")
+  .description("Print machine-ready MCP setup fields for Codex and other local agent clients")
+  .option("--project-dir <path>", "Project working directory for the MCP client", process.cwd())
+  .option("--server-name <name>", "MCP server name", "vel-glasses")
+  .option("--glasses-provider <id>", "Provider id: mock or glasses-grounding")
+  .option("--vision-python <path>", "Python executable for the local vision worker")
+  .option("--vision-model <path-or-id>", "Local model path or Hugging Face model id")
+  .option("--format <format>", "Output format: human or json", "human")
+  .action(async (target, opts) => {
+    if (target !== "codex") {
+      console.error("Supported install target: codex");
+      process.exit(1);
+    }
+    const payload = buildCodexInstallPayload({
+      projectDir: opts.projectDir,
+      serverName: opts.serverName,
+      provider: opts.glassesProvider ?? program.opts().provider ?? process.env.VEL_GLASSES_PROVIDER ?? "glasses-grounding",
+      visionPython: opts.visionPython,
+      visionModel: opts.visionModel,
+    });
+    if (opts.format === "json") {
+      console.log(fmt(payload));
+    } else if (opts.format === "human") {
+      console.log(renderCodexInstall(payload));
+    } else {
+      throw new Error("--format must be human or json");
+    }
+  });
+
+program
   .command("benchmark <target>")
   .description("Run a real provider benchmark probe")
   .requiredOption("--image <path>", "Image path")
@@ -396,3 +433,106 @@ program
   });
 
 program.parse();
+
+interface CodexInstallOptions {
+  projectDir: string;
+  serverName: string;
+  provider: string;
+  visionPython?: string;
+  visionModel?: string;
+}
+
+function buildCodexInstallPayload(opts: CodexInstallOptions) {
+  const projectDir = resolve(opts.projectDir);
+  const provider = opts.provider;
+  const likelyModelPath = resolve(homedir(), "30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16");
+  const visionPython = opts.visionPython
+    ?? process.env.VEL_VISION_PYTHON
+    ?? resolve(repoRoot, ".vel/venvs/glasses-mlx/bin/python");
+  const visionModel = opts.visionModel
+    ?? process.env.VEL_VISION_MODEL
+    ?? (existsSync(likelyModelPath) ? likelyModelPath : "mlx-community/LocateAnything-3B-bf16");
+  const env: Record<string, string> = {
+    VEL_GLASSES_PROVIDER: provider,
+  };
+  if (provider === "glasses-grounding") {
+    env.VEL_VISION_PYTHON = visionPython;
+    env.VEL_VISION_MODEL = visionModel;
+  }
+  const args = ["--dir", repoRoot, "--filter", "@vel/glasses-mcp", "dev"];
+  const codexForm = {
+    name: opts.serverName,
+    transport: "stdio",
+    command: "pnpm",
+    arguments: args,
+    environmentVariables: env,
+    environmentVariablePassthrough: [] as string[],
+    workingDirectory: projectDir,
+  };
+  return {
+    schemaVersion: "2026-06-14",
+    target: "codex",
+    dryRun: true,
+    codexForm,
+    mcpJson: {
+      mcpServers: {
+        [opts.serverName]: {
+          command: codexForm.command,
+          args: codexForm.arguments,
+          env: codexForm.environmentVariables,
+        },
+      },
+    },
+    checks: [
+      { name: "velMcpRepo", ok: existsSync(resolve(repoRoot, "packages/glasses-mcp/package.json")), detail: repoRoot },
+      { name: "projectDir", ok: existsSync(projectDir), detail: projectDir },
+      { name: "visionPython", ok: provider !== "glasses-grounding" || existsSync(visionPython), detail: visionPython },
+      { name: "visionModel", ok: provider !== "glasses-grounding" || !visionModel.startsWith("/") || existsSync(visionModel), detail: visionModel },
+      { name: "demoDashboard", ok: existsSync(resolve(repoRoot, "examples/glasses-demo/dashboard.png")), detail: resolve(repoRoot, "examples/glasses-demo/dashboard.png") },
+      { name: "demoVideo", ok: existsSync(resolve(repoRoot, "examples/glasses-demo/button-appears.mp4")), detail: resolve(repoRoot, "examples/glasses-demo/button-appears.mp4") },
+    ],
+    nextPrompts: {
+      image: `Use vel-glasses. Look at ${resolve(repoRoot, "examples/glasses-demo/dashboard.png")}. What should I click to approve the deployment? Return the target label and normalized coordinates. Do not click anything.`,
+      video: `Use vel-glasses. Scan ${resolve(repoRoot, "examples/glasses-demo/button-appears.mp4")}. When does the blue Approve button become visible? Return timestamps and frame references.`,
+    },
+  };
+}
+
+function renderCodexInstall(payload: ReturnType<typeof buildCodexInstallPayload>): string {
+  const envLines = Object.entries(payload.codexForm.environmentVariables)
+    .map(([key, value]) => `  ${key} = ${value}`)
+    .join("\n");
+  const checkLines = payload.checks
+    .map((check) => `  ${check.ok ? "OK" : "MISSING"} ${check.name}: ${check.detail}`)
+    .join("\n");
+  return [
+    "VEL Glasses Codex MCP setup",
+    "",
+    "Paste these values into Codex > Connect to a custom MCP:",
+    "",
+    `Name: ${payload.codexForm.name}`,
+    "Transport: STDIO",
+    `Command to launch: ${payload.codexForm.command}`,
+    "Arguments:",
+    ...payload.codexForm.arguments.map((arg) => `  ${arg}`),
+    "Environment variables:",
+    envLines || "  none",
+    "Environment variable passthrough:",
+    "  none",
+    `Working directory: ${payload.codexForm.workingDirectory}`,
+    "",
+    "Readiness checks:",
+    checkLines,
+    "",
+    "Machine-readable MCP JSON:",
+    JSON.stringify(payload.mcpJson, null, 2),
+    "",
+    "First image prompt:",
+    payload.nextPrompts.image,
+    "",
+    "First video prompt:",
+    payload.nextPrompts.video,
+    "",
+    "This command is dry-run only; it does not write Codex settings.",
+  ].join("\n");
+}
