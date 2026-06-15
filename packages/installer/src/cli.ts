@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 
@@ -347,7 +347,19 @@ export function writeManifest(path: string, mcpJson: unknown): void {
 }
 
 export function writeOpenCodeConfig(path: string, opencodeJson: unknown): void {
-  writeFileSync(path, `${JSON.stringify(opencodeJson, null, 2)}\n`, { flag: "wx" });
+  const incoming = opencodeJson as { mcp?: Record<string, unknown> };
+  const existing = existsSync(path)
+    ? JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>
+    : {};
+  const merged = {
+    ...existing,
+    ...opencodeJson as Record<string, unknown>,
+    mcp: {
+      ...(existing.mcp as Record<string, unknown> | undefined ?? {}),
+      ...(incoming.mcp ?? {}),
+    },
+  };
+  writeFileSync(path, `${JSON.stringify(merged, null, 2)}\n`);
 }
 
 function bootstrapCommands(opts: InstallOptions): string[] {

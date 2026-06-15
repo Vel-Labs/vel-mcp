@@ -119,10 +119,16 @@ describe("@vel/mcp installer", () => {
     }
   });
 
-  it("writes an OpenCode config without overwriting", () => {
+  it("merges OpenCode config without removing existing settings", () => {
     const dir = mkdtempSync(resolve(tmpdir(), "vel-mcp-opencode-test-"));
     const configPath = resolve(dir, "opencode.json");
     try {
+      writeOpenCodeConfig(configPath, {
+        $schema: "https://opencode.ai/config.json",
+        provider: { ollama: { name: "Ollama" } },
+        mcp: { existing: { type: "local", command: ["echo", "ok"], enabled: true } },
+      });
+
       const payload = buildInstallPayload(parseArgs([
         "install",
         "opencode",
@@ -136,9 +142,10 @@ describe("@vel/mcp installer", () => {
 
       writeOpenCodeConfig(configPath, payload.opencodeJson);
       const config = JSON.parse(readFileSync(configPath, "utf-8"));
+      expect(config.provider.ollama.name).toBe("Ollama");
+      expect(config.mcp.existing.command).toEqual(["echo", "ok"]);
       expect(config.mcp["vel-glasses"].type).toBe("local");
       expect(config.mcp["vel-glasses"].environment.VEL_GLASSES_PROVIDER).toBe("mock");
-      expect(() => writeOpenCodeConfig(configPath, payload.opencodeJson)).toThrow();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
