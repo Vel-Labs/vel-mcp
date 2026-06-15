@@ -41,31 +41,102 @@ evals/glasses/              Vision eval harness spec and sample tasks
 examples/mcp-configs/       Example configs for coding agent clients
 ```
 
-## First working target
+## Requirements
 
-The first shippable target is a **mockable vision MCP**:
+For the current local Glasses layer:
+
+- macOS on Apple Silicon is the primary tested local path.
+- Node.js 20+.
+- `pnpm` 10+.
+- Python 3.11 for the local MLX worker.
+- `git`.
+- Optional but recommended: 32 GB+ unified memory for the two-model local profile.
+
+The optimal local vision profile uses two models:
+
+- `VEL_VISION_MODEL`: LocateAnything, the grounding model for boxes, GUI targets, OCR-style localized text, and object/region coordinates.
+- `VEL_VISION_VLM_MODEL`: Qwen3-VL, the general VLM for descriptions, screenshot reasoning, critique, and focused region interpretation.
+
+The current quality local profile is:
 
 ```text
-pnpm install
-pnpm --filter @vel/glasses-mcp build
-pnpm --filter @vel/glasses-mcp dev
+mlx-community/LocateAnything-3B-bf16
+mlx-community/Qwen3-VL-4B-Instruct-8bit
 ```
 
-Then connect the generated server command from `examples/mcp-configs/` to Cursor/OpenCode/Claude Desktop/Claude Code.
+Plan for about 11.5 GB of model files on disk and roughly 14-20 GB of free unified memory when both lanes are active. A 16 GB machine should be treated as constrained mode.
 
-The first real provider should be NVIDIA Eagle / LocateAnything through a Python worker process. The initial tool surface should remain stable even if the model backend changes.
+## Install From This Repo
 
-## One-command MCP setup
-
-From a cloned repo, use the setup wrapper. It installs dependencies, builds the installer, generates client config, and prints readiness checks.
-
-OpenCode:
+Clone and build the kit:
 
 ```bash
 git clone https://github.com/Vel-Labs/vel-mcp.git
 cd vel-mcp
+pnpm install
+pnpm build
+```
+
+Set up the local Python worker and LocateAnything lane:
+
+```bash
+node packages/glasses-mcp/dist/cli.js setup locate-anything
+```
+
+If you are setting it up manually, the equivalent worker commands are:
+
+```bash
+python3.11 -m venv .vel/venvs/glasses-mlx
+.vel/venvs/glasses-mlx/bin/python -m pip install -e packages/glasses-mcp/workers/vel-worker
+.vel/venvs/glasses-mlx/bin/python -m pip install mlx-vlm huggingface_hub
+```
+
+Download the recommended local models:
+
+```bash
+huggingface-cli download mlx-community/LocateAnything-3B-bf16 \
+  --local-dir ~/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16
+
+huggingface-cli download mlx-community/Qwen3-VL-4B-Instruct-8bit \
+  --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-8bit
+```
+
+Export the model environment for direct CLI tests:
+
+```bash
+export VEL_GLASSES_PROVIDER=glasses-grounding
+export VEL_VISION_PYTHON="$PWD/.vel/venvs/glasses-mlx/bin/python"
+export VEL_VISION_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16"
+export VEL_VISION_VLM_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-8bit"
+```
+
+Run a direct local smoke:
+
+```bash
+node packages/glasses-mcp/dist/cli.js review examples/glasses-demo/dashboard.png \
+  --focus "Approve button" \
+  --mode ui_review
+```
+
+## Configure An Agent Project
+
+Run the setup command from the cloned `vel-mcp` repo. The installer writes MCP config for the target project, model env vars, `AGENTS.md`, and `.vel/skills/vel-glasses/SKILL.md` guidance so users can ask normal visual questions.
+
+CommandCode:
+
+```bash
+pnpm setup:commandcode -- --project-dir /path/to/project
+cd /path/to/project
+cmd mcp list
+```
+
+OpenCode:
+
+```bash
 pnpm setup:opencode -- --project-dir /path/to/project
 ```
+
+After OpenCode setup, fully close and reopen the OpenCode process. Starting a new chat is not enough.
 
 Codex:
 
@@ -73,21 +144,65 @@ Codex:
 pnpm setup:codex -- --project-dir /path/to/project
 ```
 
-Generic MCP `.mcp.json`:
+Generic project `.mcp.json`:
 
 ```bash
 pnpm setup:mcp -- --project-dir /path/to/project --write
 ```
 
-For OpenCode, fully close and reopen the OpenCode process after setup. Starting a new chat is not enough.
+What gets written:
 
-The published package path is intended to become:
+- CommandCode: `/path/to/project/.mcp.json`.
+- OpenCode: `/path/to/project/opencode.json`.
+- Generic MCP: `/path/to/project/.mcp.json`.
+- Agent guidance: `/path/to/project/AGENTS.md`.
+- Detailed visual-routing skill: `/path/to/project/.vel/skills/vel-glasses/SKILL.md`.
 
-```bash
-npx @vel/mcp install mcp --project-dir . --bootstrap --write
+For saved images, put files under the target project or `~/vel/glasses/inputs`. Those roots are allowed by default. Attachment handling varies by agent harness; if an attached image is not accessible, save it into the project and ask about that path.
+
+## First Prompts
+
+After the MCP server appears in the agent client, users should ask naturally:
+
+```text
+Look at images/screenshot.png and describe what stands out in 3 bullets.
 ```
 
-Use `install codex` to print Codex STDIO form fields, `install opencode` to generate an OpenCode-native `opencode.json`, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
+```text
+Look at images/screenshot.png and focus on the checkout button. Where is it?
+```
+
+```text
+Look at http://localhost:3000 and review the pricing section.
+```
+
+The agent guidance should route these to `glasses.review_visual`, `glasses.locate`, `glasses.ocr`, or `glasses.capture_url` as needed. Users should not need to type MCP method names.
+
+## Verify
+
+From the `vel-mcp` repo:
+
+```bash
+pnpm verify
+pnpm smoke:glasses
+```
+
+For real LocateAnything evals after the model env is configured:
+
+```bash
+pnpm eval:locate-anything-smoke
+pnpm eval:locate-anything-quality
+```
+
+## Future Published Installer
+
+Once `@vel/mcp` is published, the intended no-clone bootstrap path is:
+
+```bash
+npx @vel/mcp install commandcode --project-dir . --bootstrap --write
+```
+
+Use `install commandcode` for CommandCode, `install opencode` for OpenCode, `install codex` to print Codex STDIO form fields, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
 
 ## Core design rule
 
