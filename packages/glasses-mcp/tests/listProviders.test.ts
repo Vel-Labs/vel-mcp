@@ -74,4 +74,48 @@ describe("glasses.list_providers", () => {
       else process.env.VEL_VISION_PYTHON = previousPython;
     }
   });
+
+  it("lets VEL_VISION_VLM_MODEL override configured general_vlm preference", async () => {
+    const previousProvider = process.env.VEL_GLASSES_PROVIDER;
+    const previousModel = process.env.VEL_VISION_MODEL;
+    const previousVlmModel = process.env.VEL_VISION_VLM_MODEL;
+    const previousPython = process.env.VEL_VISION_PYTHON;
+
+    process.env.VEL_GLASSES_PROVIDER = "glasses-grounding";
+    process.env.VEL_VISION_MODEL = "mlx-community/LocateAnything-3B-bf16";
+    process.env.VEL_VISION_VLM_MODEL = "mlx-community/Qwen3-VL-4B-Instruct-8bit";
+    process.env.VEL_VISION_PYTHON = "python3";
+
+    try {
+      const { router, supervisor, modelRegistry } = createGlassesServer({
+        config: {
+          models: [
+            { id: "mlx-community/LocateAnything-3B-bf16", kind: "mlx-vlm", role: "grounding", enabled: true },
+            { id: "mlx-community/Qwen3-VL-4B-Instruct-5bit", kind: "mlx-vlm", role: "general_vlm", enabled: true },
+          ],
+          roles: {
+            general_vlm: {
+              preferred: "mlx-community/Qwen3-VL-4B-Instruct-5bit",
+              fallback: [],
+            },
+          },
+          toolToRole: {
+            inspect_image: "general_vlm",
+          },
+        },
+      });
+      expect(modelRegistry.resolveModelForRole("general_vlm")?.modelId).toBe("mlx-community/Qwen3-VL-4B-Instruct-8bit");
+      expect(router.getForTool("inspect_image").id).toBe("glasses-vlm");
+      await supervisor.stopAll();
+    } finally {
+      if (previousProvider === undefined) delete process.env.VEL_GLASSES_PROVIDER;
+      else process.env.VEL_GLASSES_PROVIDER = previousProvider;
+      if (previousModel === undefined) delete process.env.VEL_VISION_MODEL;
+      else process.env.VEL_VISION_MODEL = previousModel;
+      if (previousVlmModel === undefined) delete process.env.VEL_VISION_VLM_MODEL;
+      else process.env.VEL_VISION_VLM_MODEL = previousVlmModel;
+      if (previousPython === undefined) delete process.env.VEL_VISION_PYTHON;
+      else process.env.VEL_VISION_PYTHON = previousPython;
+    }
+  });
 });

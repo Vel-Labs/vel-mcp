@@ -148,7 +148,7 @@ function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string,
   }
 
   if (process.env.VEL_VISION_MODEL) {
-    roles.grounding ??= { preferred: process.env.VEL_VISION_MODEL, fallback: [] };
+    roles.grounding = withPreferredRole(roles.grounding, process.env.VEL_VISION_MODEL);
     toolToRole.locate ??= "grounding";
     toolToRole.ocr ??= "grounding";
     toolToRole.video_scan ??= "grounding";
@@ -172,7 +172,7 @@ function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string,
         taskAffinity: ["inspect_image", "describe", "ask", "document-understanding"],
       });
     }
-    roles.general_vlm ??= { preferred: process.env.VEL_VISION_VLM_MODEL, fallback: [] };
+    roles.general_vlm = withPreferredRole(roles.general_vlm, process.env.VEL_VISION_VLM_MODEL);
     toolToRole.inspect_image ??= "general_vlm";
     toolToRole.describe ??= "general_vlm";
     toolToRole.ask ??= "general_vlm";
@@ -193,6 +193,19 @@ function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string,
     toolToRole,
     providers,
   };
+}
+
+function withPreferredRole(existing: unknown, preferred: string): { preferred: string; fallback: string[] } {
+  const entry = existing as Record<string, unknown> | undefined;
+  const existingPreferred = typeof entry?.preferred === "string" ? entry.preferred : undefined;
+  const existingFallback = Array.isArray(entry?.fallback)
+    ? entry.fallback.filter((model): model is string => typeof model === "string")
+    : [];
+  const fallback = [
+    ...(existingPreferred && existingPreferred !== preferred ? [existingPreferred] : []),
+    ...existingFallback,
+  ].filter((model, index, all) => model !== preferred && all.indexOf(model) === index);
+  return { preferred, fallback };
 }
 
 function resolveAllowedImageRoots(explicit?: string[], config?: Record<string, unknown>): string[] {
