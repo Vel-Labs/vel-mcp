@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { createGlassesServer } from "./server.js";
 import { loadVelConfig } from "@vel/core";
+import { videoScanTool } from "./tools/videoScan.js";
 
 async function createServer() {
   let config: Record<string, unknown> | undefined;
@@ -197,9 +198,9 @@ program
   .option("--max-bytes <n>", "Maximum video size in bytes", String(250 * 1024 * 1024))
   .option("--query <query>", "Optional query to run on each frame")
   .action(async (videoPath, opts) => {
-    await withServer(async ({ router }) => {
-      const provider = router.getForTool("video_scan", program.opts().provider);
-      const result = await provider.videoScan({
+    await withServer(async ({ router, imageLoader, artifactStore }) => {
+      const tool = videoScanTool(router, imageLoader, artifactStore);
+      const result = await tool.handler({
         video: imageRef(videoPath),
         sampling: {
           everySeconds: opts.fps ? undefined : parseFloat(opts.everySeconds),
@@ -208,9 +209,11 @@ program
           maxDurationSec: parseFloat(opts.maxDurationSec),
           maxBytes: parseInt(opts.maxBytes, 10),
         },
+        provider: program.opts().provider,
         query: opts.query,
       });
-      console.log(fmt(result.data));
+      const payload = JSON.parse(String((result as any).content?.[0]?.text ?? "{}"));
+      console.log(fmt(payload.result ?? payload));
     });
   });
 

@@ -63,7 +63,7 @@ export function videoScanTool(
         for (const frame of frames) {
           try {
             const locateResult = await provider.locate({
-              image: { kind: "artifact_id", value: frame.artifactId, mimeType: "image/png" },
+              image: { kind: "file_path", value: artifactStore.dataPath(frame.artifactId), mimeType: "image/png" },
               query: input.query,
               outputType: "box",
               targetType: "any",

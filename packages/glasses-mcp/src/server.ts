@@ -124,5 +124,5 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
   registerVelTool(server, detectAnomaliesTool(router, imageLoader), auditOpts);
   registerVelTool(server, listProvidersTool(router), auditOpts);
   registerVelTool(server, setupTool(router), auditOpts);
-  return { server, router, audit, supervisor, modelRegistry };
+  return { server, router, audit, supervisor, modelRegistry, imageLoader, artifactStore };
 }
