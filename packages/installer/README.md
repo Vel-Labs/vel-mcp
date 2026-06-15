@@ -45,9 +45,18 @@ pnpm dlx @vel/mcp install opencode --project-dir . --write
 - A generic `mcpServers` JSON manifest for clients that discover project-local `.mcp.json`.
 - Readiness checks for the kit checkout, project directory, Python worker, and local vision model path.
 - `VEL_ALLOWED_IMAGE_ROOTS` so the target project, VEL kit examples, and `~/vel/glasses/inputs` are readable by the glasses path policy.
-- Local LocateAnything model discovery with Hugging Face links.
+- Model-role guidance that explains which local model class is needed for grounding, open-ended image inspection, and video reasoning.
+- Local LocateAnything and general VLM discovery with Hugging Face links.
 - First image and video prompts that use the demo assets in `examples/glasses-demo`.
 
 The wizard is dry-run-first. It only clones/builds the kit with `--bootstrap`, and it only writes `.mcp.json` or `opencode.json` with `--write`.
 
 OpenCode must be closed and reopened after changing MCP config; starting a new chat in the same process is not enough.
+
+## Model roles
+
+`VEL_VISION_MODEL` is the grounding model. The current first-class choice is LocateAnything. It is strong at deterministic coordinates: GUI elements, object boxes, points, and localized text. It is limited because its worker protocol returns grounding tokens such as `<ref>` and `<box>`; it is not meant to narrate a full scene or answer arbitrary visual questions.
+
+`VEL_VISION_VLM_MODEL` is the general VLM. This is the model class used by `glasses.inspect_image`, `glasses.describe`, and `glasses.ask`. The intended MLX candidates are Qwen3-VL, Qwen2.5-VL, or InternVL. These are better for descriptions and screenshot reasoning, but they are slower and should not replace LocateAnything for precise click target coordinates.
+
+If the wizard reports `MISSING visionVlmModel`, `glasses.locate` can still work, but open-ended inspection should report that a general VLM is not configured.

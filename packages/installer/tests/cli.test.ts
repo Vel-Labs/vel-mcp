@@ -52,6 +52,7 @@ describe("@vel/mcp installer", () => {
     expect(payload.codexForm.environmentVariables.VEL_ALLOWED_IMAGE_ROOTS).toContain("/tmp/example-project");
     expect(payload.mcpJson.mcpServers["vel-glasses"].command).toBe("pnpm");
     expect(payload.localManifest).toBe("/tmp/example-project/.mcp.json");
+    expect(payload.modelRoles.find((role) => role.role === "grounding")?.limitations.join(" ")).toContain("not a general image narrator");
   });
 
   it("includes a configured general VLM model for inspect_image, describe, and ask", () => {
@@ -131,6 +132,8 @@ describe("@vel/mcp installer", () => {
     const out = renderInstall(payload);
     expect(out).toContain("VEL MCP generic setup wizard");
     expect(out).toContain("STDIO MCP fields:");
+    expect(out).toContain("Model roles:");
+    expect(out).toContain("VEL_VISION_VLM_MODEL");
     expect(out).toContain("Machine-readable MCP JSON:");
     expect(out).toContain("First image prompt:");
     expect(out).toContain("examples/glasses-demo/dashboard.png");

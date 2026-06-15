@@ -40,6 +40,13 @@ interface ModelSuggestion {
 interface InstallPayload {
   schemaVersion: string;
   target: "mcp" | "codex" | "opencode";
+  modelRoles: Array<{
+    role: string;
+    purpose: string;
+    tools: string[];
+    limitations: string[];
+    env: string[];
+  }>;
   kit: {
     dir: string;
     repoUrl: string;
@@ -250,6 +257,7 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
   return {
     schemaVersion: "2026-06-15",
     target: opts.target,
+    modelRoles: modelRoleGuide(),
     kit: {
       dir: opts.kitDir,
       repoUrl: opts.repoUrl,
@@ -314,6 +322,12 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
   const envLines = Object.entries(payload.codexForm.environmentVariables).map(([key, value]) => `  ${key} = ${value}`).join("\n");
   const checkLines = payload.checks.map((check) => `  ${check.ok ? "OK" : "MISSING"} ${check.name}: ${check.detail}`).join("\n");
   const bootstrapLines = payload.bootstrap.commands.map((cmd) => `  ${cmd}`).join("\n");
+  const roleLines = payload.modelRoles.map((role) => [
+    `  ${role.role}: ${role.purpose}`,
+    `    tools: ${role.tools.join(", ")}`,
+    `    env: ${role.env.join(", ")}`,
+    `    limits: ${role.limitations.join(" ")}`,
+  ].join("\n")).join("\n");
   const modelLines = payload.modelDiscovery.map((model) => [
     `  ${model.runtimeReady ? "READY" : model.status === "available" ? "FOUND" : "MISSING"} ${model.displayName} (${model.id})`,
     `    role: ${model.role}; kind: ${model.kind}; size: ${model.sizeGb} GB`,
@@ -349,6 +363,9 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     "Readiness checks:",
     checkLines,
     "",
+    "Model roles:",
+    roleLines,
+    "",
     "Machine-readable MCP JSON:",
     JSON.stringify(payload.mcpJson, null, 2),
     "",
@@ -372,6 +389,41 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     "First video prompt:",
     payload.nextPrompts.video,
   ].filter((line) => line !== undefined).join("\n");
+}
+
+function modelRoleGuide(): InstallPayload["modelRoles"] {
+  return [
+    {
+      role: "grounding",
+      purpose: "Find visual targets and return deterministic coordinates.",
+      tools: ["glasses.locate", "glasses.ocr", "glasses.video_scan event localization"],
+      limitations: [
+        "LocateAnything-style grounding is not a general image narrator.",
+        "Use it for boxes, points, GUI elements, and localized text, not open-ended scene descriptions."
+      ],
+      env: ["VEL_VISION_MODEL"]
+    },
+    {
+      role: "general_vlm",
+      purpose: "Describe images, answer visual questions, and reason over screenshots/documents.",
+      tools: ["glasses.inspect_image", "glasses.describe", "glasses.ask"],
+      limitations: [
+        "General VLMs can be slower and less precise at click coordinates than grounding models.",
+        "They should not replace LocateAnything for GUI-target boxes unless grounding is unavailable."
+      ],
+      env: ["VEL_VISION_VLM_MODEL"]
+    },
+    {
+      role: "temporal_vlm",
+      purpose: "Summarize event order across sampled video frames.",
+      tools: ["future glasses.video_summarize", "video_scan summaries"],
+      limitations: [
+        "Current video support is bounded sampling plus event manifests.",
+        "Real scene-change and temporal reasoning require an installed general or temporal VLM."
+      ],
+      env: ["VEL_VISION_VLM_MODEL"]
+    }
+  ];
 }
 
 function bootstrap(opts: InstallOptions): void {

@@ -15,6 +15,15 @@ Vision/OCR/grounding MCP package for VEL.
 
 - `mock` — deterministic provider for tests and smoke checks.
 - `glasses-grounding` — local MLX-VLM LocateAnything provider through the Python JSONL worker. Enabled when a grounding model is configured and runtime dependencies are installed.
+- `glasses-vlm` — local MLX-VLM general image reasoning provider. Enabled when `VEL_VISION_VLM_MODEL` points to a compatible general VLM such as Qwen3-VL, Qwen2.5-VL, or InternVL.
+
+## Model Roles
+
+`VEL_VISION_MODEL` configures the grounding lane. LocateAnything is the current verified model for this lane. It should be used for `glasses.locate`, GUI click-target lookup, object boxes, points, OCR-style localized spans, and bounded video event localization. Its limitation is architectural: LocateAnything emits localization tokens (`<ref>`, `<box>`, points) and is optimized for spatial grounding, not free-form visual narration.
+
+`VEL_VISION_VLM_MODEL` configures the general VLM lane. This is required for useful `glasses.inspect_image`, `glasses.describe`, and `glasses.ask` output. Qwen3-VL is the preferred MLX family in the example config, with Qwen2.5-VL and InternVL as alternatives. General VLMs are better at descriptions and screenshot/document reasoning, but they are not the first choice for deterministic GUI coordinates.
+
+If only `VEL_VISION_MODEL` is set, `glasses.locate` can be fully operational while `glasses.inspect_image` correctly reports that a general VLM is missing.
 
 ## Real Model Checks
 

@@ -102,6 +102,66 @@ const DEFAULT_MODELS: ModelConfig[] = [
     taskAffinity: ["locate", "ocr", "gui", "document-layout"],
   },
   {
+    id: "mlx-community/Qwen3-VL-8B-Thinking-8bit",
+    displayName: "Qwen3-VL-8B Thinking 8-bit (MLX)",
+    kind: "mlx-vlm",
+    role: "vision-language-reasoning",
+    sizeGb: 9.5,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+    taskAffinity: ["inspect_image", "describe", "ask", "document-understanding", "video_frame_reasoning"],
+    dependencies: ["mlx-vlm>=0.6.2", "huggingface_hub"],
+    setupInstructions: [
+      "General VLM for glasses.inspect_image, glasses.describe, and glasses.ask.",
+      "Set: export VEL_VISION_VLM_MODEL=/absolute/path/to/mlx-community/Qwen3-VL-8B-Thinking-8bit",
+      "Download: huggingface-cli download mlx-community/Qwen3-VL-8B-Thinking-8bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-8B-Thinking-8bit",
+    ],
+  },
+  {
+    id: "mlx-community/Qwen3-VL-4B-Instruct-5bit",
+    displayName: "Qwen3-VL-4B Instruct 5-bit (MLX)",
+    kind: "mlx-vlm",
+    role: "vision-language-reasoning",
+    sizeGb: 5.0,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+    taskAffinity: ["inspect_image", "describe", "ask", "fast_caption"],
+    dependencies: ["mlx-vlm>=0.6.2", "huggingface_hub"],
+    setupInstructions: [
+      "Smaller general VLM for screenshots, quick descriptions, and visual QA.",
+      "Set: export VEL_VISION_VLM_MODEL=/absolute/path/to/mlx-community/Qwen3-VL-4B-Instruct-5bit",
+      "Download: huggingface-cli download mlx-community/Qwen3-VL-4B-Instruct-5bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-5bit",
+    ],
+  },
+  {
+    id: "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+    displayName: "Qwen2.5-VL-7B Instruct 4-bit (MLX)",
+    kind: "mlx-vlm",
+    role: "vision-language-reasoning",
+    sizeGb: 5.5,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+    taskAffinity: ["inspect_image", "describe", "ask", "document-understanding"],
+    dependencies: ["mlx-vlm>=0.6.2", "huggingface_hub"],
+    setupInstructions: [
+      "General VLM compatibility baseline for image description and document/screenshot reasoning.",
+      "Set: export VEL_VISION_VLM_MODEL=/absolute/path/to/mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+      "Download: huggingface-cli download mlx-community/Qwen2.5-VL-7B-Instruct-4bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+    ],
+  },
+  {
+    id: "mlx-community/InternVL3-8B-MLX-4bit",
+    displayName: "InternVL3-8B 4-bit (MLX)",
+    kind: "mlx-vlm",
+    role: "vision-language-reasoning",
+    sizeGb: 5.5,
+    licenseWarning: "Verify upstream model card terms before production use.",
+    taskAffinity: ["inspect_image", "describe", "ask", "second_opinion"],
+    dependencies: ["mlx-vlm>=0.6.2", "huggingface_hub"],
+    setupInstructions: [
+      "Alternative general VLM for second-opinion image reasoning.",
+      "Set: export VEL_VISION_VLM_MODEL=/absolute/path/to/mlx-community/InternVL3-8B-MLX-4bit",
+      "Download: huggingface-cli download mlx-community/InternVL3-8B-MLX-4bit --local-dir ~/30_AI-Lab/_cache/models/mlx-community/InternVL3-8B-MLX-4bit",
+    ],
+  },
+  {
     id: "nvidia/Eagle2.5-8B",
     displayName: "Eagle2.5-8B",
     kind: "transformers",
@@ -120,8 +180,10 @@ const DEFAULT_MODELS: ModelConfig[] = [
 ];
 
 function modelPath(model: ModelConfig): string | undefined {
-  const envModel = process.env.VEL_VISION_MODEL;
-  if (envModel && (envModel.startsWith("/") || envModel.startsWith("~"))) {
+  const envModel = model.role === "vision-language-reasoning"
+    ? process.env.VEL_VISION_VLM_MODEL
+    : process.env.VEL_VISION_MODEL;
+  if (envModel && isEnvModelForCandidate(envModel, model.id) && (envModel.startsWith("/") || envModel.startsWith("~"))) {
     return resolvePath(envModel);
   }
 
@@ -146,6 +208,10 @@ function modelPath(model: ModelConfig): string | undefined {
   return resolve(homedir(), "30_AI-Lab", "_cache", "models", model.id);
 }
 
+function isEnvModelForCandidate(envModel: string, modelId: string): boolean {
+  return envModel === modelId || envModel.endsWith(`/${modelId}`);
+}
+
 function pathExists(model: ModelConfig): boolean {
   const p = modelPath(model);
   if (!p) return false;
@@ -157,7 +223,9 @@ function pathExists(model: ModelConfig): boolean {
 
 function buildDiscovery(model: ModelConfig): ModelDiscovery {
   const exists = pathExists(model);
-  const modelEnv = process.env.VEL_VISION_MODEL;
+  const modelEnv = model.role === "vision-language-reasoning"
+    ? process.env.VEL_VISION_VLM_MODEL
+    : process.env.VEL_VISION_MODEL;
 
   const runtimeReady =
     model.role === "spatial-grounding"
@@ -192,7 +260,8 @@ function buildDefaultInstructions(model: ModelConfig): string[] {
   if (model.kind === "mlx" || model.kind === "mlx-vlm") {
     lines.push("Apple Silicon native MLX model.");
     lines.push("Set: export VEL_VISION_PYTHON=/path/to/.vel/venvs/glasses-mlx/bin/python");
-    lines.push(`Set: export VEL_VISION_MODEL=/absolute/path/to/${model.id}`);
+    const modelEnvName = model.role === "vision-language-reasoning" ? "VEL_VISION_VLM_MODEL" : "VEL_VISION_MODEL";
+    lines.push(`Set: export ${modelEnvName}=/absolute/path/to/${model.id}`);
     lines.push(`Install: pip install ${model.kind === "mlx-vlm" ? "mlx-vlm" : "mlx"} huggingface_hub`);
     lines.push(`Download: huggingface-cli download ${model.id} --local-dir ~/30_AI-Lab/_cache/models/${model.id}`);
   } else {

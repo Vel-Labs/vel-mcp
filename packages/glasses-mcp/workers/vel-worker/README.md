@@ -19,7 +19,7 @@ python3.11 -m venv .vel/venvs/glasses-mlx
 .vel/venvs/glasses-mlx/bin/python -m pip install mlx-vlm huggingface_hub
 ```
 
-Download a compatible model, or point at an existing local cache:
+Download a compatible grounding model, or point at an existing local cache:
 
 ```bash
 huggingface-cli download mlx-community/LocateAnything-3B-bf16 \
@@ -33,6 +33,17 @@ export VEL_VISION_PYTHON="$PWD/.vel/venvs/glasses-mlx/bin/python"
 export VEL_VISION_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16"
 export VEL_GLASSES_PROVIDER=glasses-grounding
 ```
+
+For open-ended inspection and visual question answering, also download and configure a general VLM:
+
+```bash
+huggingface-cli download mlx-community/Qwen3-VL-4B-Instruct-5bit \
+  --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-5bit
+
+export VEL_VISION_VLM_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-5bit"
+```
+
+LocateAnything is the grounding lane. It returns boxes, points, GUI targets, and localized text. Qwen/InternVL-style general VLMs are the description lane for `inspect_image`, `describe`, and `ask`.
 
 The CLI can print the same setup plan:
 
