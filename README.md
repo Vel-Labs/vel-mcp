@@ -31,6 +31,7 @@ Each package has a different permission surface. Glasses needs screenshots and i
 packages/core/              Shared config, artifact store, audit log, worker lifecycle
 packages/mcp-base/          Thin MCP SDK compatibility adapter
 packages/glasses-mcp/       Vision layer: inspect, OCR, locate, compare, video scan
+packages/installer/         npx/pnpm dlx setup wizard for MCP client configuration
 packages/control-mcp/       Status/config/control tools
 packages/brain-mcp/         Local wiki + memory tools
 packages/speech-mcp/        TTS/STT tooling contracts
@@ -53,6 +54,16 @@ pnpm --filter @vel/glasses-mcp dev
 Then connect the generated server command from `examples/mcp-configs/` to Cursor/OpenCode/Claude Desktop/Claude Code.
 
 The first real provider should be NVIDIA Eagle / LocateAnything through a Python worker process. The initial tool surface should remain stable even if the model backend changes.
+
+## One-command MCP setup
+
+The installer package is intended to be the generic entrypoint for Codex and other MCP clients:
+
+```bash
+npx @vel/mcp install mcp --project-dir . --bootstrap --write
+```
+
+Use `install codex` to print Codex STDIO form fields, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
 
 ## Core design rule
 
