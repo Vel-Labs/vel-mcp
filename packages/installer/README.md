@@ -4,7 +4,17 @@
 
 ## Quick start
 
-Dry-run the generic MCP manifest for the current project:
+From a cloned `vel-mcp` repo, prefer the root setup wrapper:
+
+```bash
+pnpm setup:opencode -- --project-dir /path/to/project
+pnpm setup:codex -- --project-dir /path/to/project
+pnpm setup:mcp -- --project-dir /path/to/project --write
+```
+
+The wrapper runs `pnpm install`, builds this installer package, then runs the right `vel-mcp install ...` command with the cloned repo as the kit.
+
+After `@vel/mcp` is published, dry-run the generic MCP manifest for the current project:
 
 ```bash
 npx @vel/mcp install mcp --project-dir .

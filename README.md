@@ -57,14 +57,37 @@ The first real provider should be NVIDIA Eagle / LocateAnything through a Python
 
 ## One-command MCP setup
 
-The installer package is intended to be the generic entrypoint for Codex and other MCP clients:
+From a cloned repo, use the setup wrapper. It installs dependencies, builds the installer, generates client config, and prints readiness checks.
+
+OpenCode:
+
+```bash
+git clone https://github.com/Vel-Labs/vel-mcp.git
+cd vel-mcp
+pnpm setup:opencode -- --project-dir /path/to/project
+```
+
+Codex:
+
+```bash
+pnpm setup:codex -- --project-dir /path/to/project
+```
+
+Generic MCP `.mcp.json`:
+
+```bash
+pnpm setup:mcp -- --project-dir /path/to/project --write
+```
+
+For OpenCode, fully close and reopen the OpenCode process after setup. Starting a new chat is not enough.
+
+The published package path is intended to become:
 
 ```bash
 npx @vel/mcp install mcp --project-dir . --bootstrap --write
 ```
 
-Use `install codex` to print Codex STDIO form fields, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
-Use `install opencode` to generate an OpenCode-native `opencode.json`; OpenCode must be fully closed and reopened after MCP config changes.
+Use `install codex` to print Codex STDIO form fields, `install opencode` to generate an OpenCode-native `opencode.json`, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
 
 ## Core design rule
 
