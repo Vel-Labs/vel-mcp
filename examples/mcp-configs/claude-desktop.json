@@ -2,9 +2,11 @@
   "mcpServers": {
     "vel-glasses": {
       "command": "pnpm",
-      "args": ["--dir", "/absolute/path/to/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
+      "args": ["--dir", "/Users/steven/Workspace/40_Code/projects/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
       "env": {
-        "VEL_GLASSES_PROVIDER": "mock"
+        "VEL_GLASSES_PROVIDER": "glasses-grounding",
+        "VEL_VISION_PYTHON": "/Users/steven/Workspace/40_Code/projects/vel-mcp/.vel/venvs/glasses-mlx/bin/python",
+        "VEL_VISION_MODEL": "/Users/steven/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16"
       }
     }
   }

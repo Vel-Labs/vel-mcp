@@ -3,10 +3,12 @@
   "mcp": {
     "vel-glasses": {
       "type": "local",
-      "command": ["pnpm", "--dir", "/absolute/path/to/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
+      "command": ["pnpm", "--dir", "/Users/steven/Workspace/40_Code/projects/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
       "enabled": true,
       "environment": {
-        "VEL_GLASSES_PROVIDER": "mock"
+        "VEL_GLASSES_PROVIDER": "glasses-grounding",
+        "VEL_VISION_PYTHON": "/Users/steven/Workspace/40_Code/projects/vel-mcp/.vel/venvs/glasses-mlx/bin/python",
+        "VEL_VISION_MODEL": "/Users/steven/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16"
       }
     }
   }
