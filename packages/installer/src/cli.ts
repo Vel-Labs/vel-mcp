@@ -105,19 +105,19 @@ const MODEL_SUGGESTIONS = [
     licenseWarning: "Non-commercial (inherits from upstream NVIDIA model)",
   },
   {
-    id: "mlx-community/Qwen3-VL-8B-Thinking-8bit",
-    displayName: "Qwen3-VL-8B Thinking 8-bit (MLX)",
-    role: "general_vlm",
-    kind: "mlx-vlm",
-    sizeGb: 9.5,
-    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
-  },
-  {
     id: "mlx-community/Qwen3-VL-4B-Instruct-5bit",
-    displayName: "Qwen3-VL-4B Instruct 5-bit (MLX)",
+    displayName: "Qwen3-VL-4B Instruct 5-bit (MLX, default)",
     role: "general_vlm",
     kind: "mlx-vlm",
     sizeGb: 5.0,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+  },
+  {
+    id: "mlx-community/Qwen3-VL-4B-Instruct-8bit",
+    displayName: "Qwen3-VL-4B Instruct 8-bit (MLX, quality)",
+    role: "general_vlm",
+    kind: "mlx-vlm",
+    sizeGb: 8.0,
     licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
   },
   {
@@ -408,6 +408,7 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
       purpose: "Describe images, answer visual questions, and reason over screenshots/documents.",
       tools: ["glasses.inspect_image", "glasses.describe", "glasses.ask"],
       limitations: [
+        "Qwen3-VL-4B-Instruct-5bit is the recommended default; Qwen3-VL-4B-Instruct-8bit is the local quality option.",
         "General VLMs can be slower and less precise at click coordinates than grounding models.",
         "They should not replace LocateAnything for GUI-target boxes unless grounding is unavailable."
       ],

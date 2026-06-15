@@ -57,6 +57,6 @@ OpenCode must be closed and reopened after changing MCP config; starting a new c
 
 `VEL_VISION_MODEL` is the grounding model. The current first-class choice is LocateAnything. It is strong at deterministic coordinates: GUI elements, object boxes, points, and localized text. It is limited because its worker protocol returns grounding tokens such as `<ref>` and `<box>`; it is not meant to narrate a full scene or answer arbitrary visual questions.
 
-`VEL_VISION_VLM_MODEL` is the general VLM. This is the model class used by `glasses.inspect_image`, `glasses.describe`, and `glasses.ask`. The intended MLX candidates are Qwen3-VL, Qwen2.5-VL, or InternVL. These are better for descriptions and screenshot reasoning, but they are slower and should not replace LocateAnything for precise click target coordinates.
+`VEL_VISION_VLM_MODEL` is the general VLM. This is the model class used by `glasses.inspect_image`, `glasses.describe`, and `glasses.ask`. The recommended MLX default is `mlx-community/Qwen3-VL-4B-Instruct-5bit`; the local quality option is `mlx-community/Qwen3-VL-4B-Instruct-8bit`. Qwen2.5-VL and InternVL remain fallback candidates. These are better for descriptions and screenshot reasoning, but they are slower and should not replace LocateAnything for precise click target coordinates.
 
 If the wizard reports `MISSING visionVlmModel`, `glasses.locate` can still work, but open-ended inspection should report that a general VLM is not configured.

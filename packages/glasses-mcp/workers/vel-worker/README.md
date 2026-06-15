@@ -43,6 +43,15 @@ huggingface-cli download mlx-community/Qwen3-VL-4B-Instruct-5bit \
 export VEL_VISION_VLM_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-5bit"
 ```
 
+For a higher-quality local profile, use the 8-bit Qwen3-VL model instead:
+
+```bash
+huggingface-cli download mlx-community/Qwen3-VL-4B-Instruct-8bit \
+  --local-dir ~/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-8bit
+
+export VEL_VISION_VLM_MODEL="$HOME/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-8bit"
+```
+
 LocateAnything is the grounding lane. It returns boxes, points, GUI targets, and localized text. Qwen/InternVL-style general VLMs are the description lane for `inspect_image`, `describe`, and `ask`.
 
 The CLI can print the same setup plan:

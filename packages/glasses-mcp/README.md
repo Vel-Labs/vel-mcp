@@ -21,7 +21,7 @@ Vision/OCR/grounding MCP package for VEL.
 
 `VEL_VISION_MODEL` configures the grounding lane. LocateAnything is the current verified model for this lane. It should be used for `glasses.locate`, GUI click-target lookup, object boxes, points, OCR-style localized spans, and bounded video event localization. Its limitation is architectural: LocateAnything emits localization tokens (`<ref>`, `<box>`, points) and is optimized for spatial grounding, not free-form visual narration.
 
-`VEL_VISION_VLM_MODEL` configures the general VLM lane. This is required for useful `glasses.inspect_image`, `glasses.describe`, and `glasses.ask` output. Qwen3-VL is the preferred MLX family in the example config, with Qwen2.5-VL and InternVL as alternatives. General VLMs are better at descriptions and screenshot/document reasoning, but they are not the first choice for deterministic GUI coordinates.
+`VEL_VISION_VLM_MODEL` configures the general VLM lane. This is required for useful `glasses.inspect_image`, `glasses.describe`, and `glasses.ask` output. Qwen3-VL-4B-Instruct-5bit is the recommended MLX default; Qwen3-VL-4B-Instruct-8bit is the local quality option when memory budget allows. Qwen2.5-VL and InternVL remain alternatives. General VLMs are better at descriptions and screenshot/document reasoning, but they are not the first choice for deterministic GUI coordinates.
 
 If only `VEL_VISION_MODEL` is set, `glasses.locate` can be fully operational while `glasses.inspect_image` correctly reports that a general VLM is missing.
 
