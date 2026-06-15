@@ -116,6 +116,7 @@ describe("@vel/mcp installer", () => {
     expect(payload.opencodeJson.mcp["vel-glasses"].type).toBe("local");
     expect(payload.opencodeJson.mcp["vel-glasses"].command).toEqual(["pnpm", "--dir", process.cwd(), "--filter", "@vel/glasses-mcp", "dev"]);
     expect(payload.opencodeJson.mcp["vel-glasses"].cwd).toBe("/tmp/example-project");
+    expect(payload.opencodeJson.mcp["vel-glasses"].timeout).toBe(180000);
     expect(payload.opencodeJson.mcp["vel-glasses"].environment.VEL_ALLOWED_IMAGE_ROOTS).toContain(process.cwd());
     expect(payload.opencodeConfigPath).toBe("/tmp/example-project/opencode.json");
     expect(payload.restartInstructions.some((line) => line.includes("Close and reopen"))).toBe(true);

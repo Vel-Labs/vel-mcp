@@ -6,6 +6,7 @@ import { dirname, resolve } from "node:path";
 
 const DEFAULT_REPO_URL = "https://github.com/Vel-Labs/vel-mcp.git";
 const DEFAULT_KIT_DIR = resolve(homedir(), ".vel/kits/vel-mcp");
+const OPENCODE_TIMEOUT_MS = 180_000;
 
 interface InstallOptions {
   target: "mcp" | "codex" | "opencode";
@@ -296,7 +297,7 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
           command,
           cwd: opts.projectDir,
           enabled: true,
-          timeout: 60000,
+          timeout: OPENCODE_TIMEOUT_MS,
           environment: env,
         },
       },
