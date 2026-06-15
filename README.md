@@ -64,6 +64,7 @@ npx @vel/mcp install mcp --project-dir . --bootstrap --write
 ```
 
 Use `install codex` to print Codex STDIO form fields, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
+Use `install opencode` to generate an OpenCode-native `opencode.json`; OpenCode must be fully closed and reopened after MCP config changes.
 
 ## Core design rule
 

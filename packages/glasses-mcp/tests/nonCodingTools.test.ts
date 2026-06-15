@@ -57,4 +57,21 @@ describe("G10 — Non-coding tools", () => {
     const result = await tool.detectAnomalies!({ expected: makeImage(png), actual: makeImage(png), sensitivity: "medium" });
     expect(result.data.anomalies).toBeDefined();
   });
+
+  it("allows image roots from VEL_ALLOWED_IMAGE_ROOTS", async () => {
+    const previousRoots = process.env.VEL_ALLOWED_IMAGE_ROOTS;
+    process.env.VEL_ALLOWED_IMAGE_ROOTS = JSON.stringify([tempDir]);
+
+    const envServer = createGlassesServer({ artifactStore: resolve(tempDir, "env-artifacts") });
+    try {
+      const png = resolve(tempDir, "env-root.png");
+      writeFileSync(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"));
+      const loaded = await envServer.imageLoader.load(makeImage(png));
+      expect(loaded.meta.source.value.endsWith("/env-root.png")).toBe(true);
+    } finally {
+      await envServer.supervisor.stopAll();
+      if (previousRoots === undefined) delete process.env.VEL_ALLOWED_IMAGE_ROOTS;
+      else process.env.VEL_ALLOWED_IMAGE_ROOTS = previousRoots;
+    }
+  });
 });

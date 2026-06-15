@@ -1,7 +1,7 @@
 import { createVelServer, registerVelTool } from "@vel/mcp-base";
 import { AuditLog, WorkerSupervisor, ArtifactStore, PathPolicy } from "@vel/core";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { delimiter, resolve } from "node:path";
 import { ProviderRouter } from "./providers/providerRouter.js";
 import { MockVisionProvider } from "./providers/mockVisionProvider.js";
 import { VelVisionProvider } from "./providers/velVisionProvider.js";
@@ -38,7 +38,7 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
   const config = withEnvVisionDefaults(opts.config);
 
   const artifactStore = new ArtifactStore(opts.artifactStore ?? resolve(homedir(), ".vel/artifacts"));
-  const pathPolicy = new PathPolicy(opts.allowedImageRoots ?? [process.cwd(), resolve(homedir(), "vel", "glasses", "inputs")]);
+  const pathPolicy = new PathPolicy(resolveAllowedImageRoots(opts.allowedImageRoots, config));
   const imageLoader = new ImageLoader({
     artifactStore,
     auditLog: audit,
@@ -166,4 +166,30 @@ function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string,
     toolToRole,
     providers,
   };
+}
+
+function resolveAllowedImageRoots(explicit?: string[], config?: Record<string, unknown>): string[] {
+  if (explicit?.length) return explicit;
+
+  const configured = config?.allowedImageRoots;
+  if (Array.isArray(configured)) {
+    const roots = configured.filter((root): root is string => typeof root === "string" && root.length > 0);
+    if (roots.length) return roots;
+  }
+
+  const envRoots = process.env.VEL_ALLOWED_IMAGE_ROOTS;
+  if (envRoots) {
+    try {
+      const parsed = JSON.parse(envRoots);
+      if (Array.isArray(parsed)) {
+        const roots = parsed.filter((root): root is string => typeof root === "string" && root.length > 0);
+        if (roots.length) return roots;
+      }
+    } catch {
+      const roots = envRoots.split(delimiter).map((root) => root.trim()).filter(Boolean);
+      if (roots.length) return roots;
+    }
+  }
+
+  return [process.cwd(), resolve(homedir(), "vel", "glasses", "inputs")];
 }

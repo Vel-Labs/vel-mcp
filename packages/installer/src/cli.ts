@@ -8,7 +8,7 @@ const DEFAULT_REPO_URL = "https://github.com/Vel-Labs/vel-mcp.git";
 const DEFAULT_KIT_DIR = resolve(homedir(), ".vel/kits/vel-mcp");
 
 interface InstallOptions {
-  target: "mcp" | "codex";
+  target: "mcp" | "codex" | "opencode";
   projectDir: string;
   kitDir: string;
   repoUrl: string;
@@ -38,7 +38,7 @@ interface ModelSuggestion {
 
 interface InstallPayload {
   schemaVersion: string;
-  target: "mcp" | "codex";
+  target: "mcp" | "codex" | "opencode";
   kit: {
     dir: string;
     repoUrl: string;
@@ -59,6 +59,7 @@ interface InstallPayload {
     workingDirectory: string;
   };
   localManifest: string;
+  opencodeConfigPath: string;
   mcpJson: {
     mcpServers: Record<string, {
       command: string;
@@ -66,7 +67,19 @@ interface InstallPayload {
       env: Record<string, string>;
     }>;
   };
+  opencodeJson: {
+    $schema: string;
+    mcp: Record<string, {
+      type: "local";
+      command: string[];
+      cwd: string;
+      enabled: boolean;
+      timeout: number;
+      environment: Record<string, string>;
+    }>;
+  };
   checks: Array<{ name: string; ok: boolean; detail: string }>;
+  restartInstructions: string[];
   modelDiscovery: ModelSuggestion[];
   nextPrompts: {
     image: string;
@@ -103,7 +116,7 @@ const MODEL_SUGGESTIONS = [
 
 export function parseArgs(argv: string[]): InstallOptions {
   const [command, target, ...rest] = argv;
-  if (command !== "install" || (target !== "mcp" && target !== "codex")) {
+  if (command !== "install" || (target !== "mcp" && target !== "codex" && target !== "opencode")) {
     throw new Error(helpText());
   }
 
@@ -184,13 +197,16 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
   const visionPython = opts.visionPython ?? process.env.VEL_VISION_PYTHON ?? resolve(opts.kitDir, ".vel/venvs/glasses-mlx/bin/python");
   const likelyModel = resolve(homedir(), "30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16");
   const visionModel = opts.visionModel ?? process.env.VEL_VISION_MODEL ?? (existsSync(likelyModel) ? likelyModel : "mlx-community/LocateAnything-3B-bf16");
+  const allowedImageRoots = [opts.projectDir, opts.kitDir, resolve(homedir(), "vel", "glasses", "inputs")];
   const env: Record<string, string> = { VEL_GLASSES_PROVIDER: opts.provider };
+  env.VEL_ALLOWED_IMAGE_ROOTS = JSON.stringify(allowedImageRoots);
   if (opts.provider === "glasses-grounding") {
     env.VEL_VISION_PYTHON = visionPython;
     env.VEL_VISION_MODEL = visionModel;
   }
 
   const args = ["--dir", opts.kitDir, "--filter", "@vel/glasses-mcp", "dev"];
+  const command = ["pnpm", ...args];
   return {
     schemaVersion: "2026-06-15",
     target: opts.target,
@@ -214,6 +230,7 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
       workingDirectory: opts.projectDir,
     },
     localManifest: resolve(opts.projectDir, ".mcp.json"),
+    opencodeConfigPath: resolve(opts.projectDir, "opencode.json"),
     mcpJson: {
       mcpServers: {
         [opts.serverName]: {
@@ -223,12 +240,27 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
         },
       },
     },
+    opencodeJson: {
+      $schema: "https://opencode.ai/config.json",
+      mcp: {
+        [opts.serverName]: {
+          type: "local",
+          command,
+          cwd: opts.projectDir,
+          enabled: true,
+          timeout: 60000,
+          environment: env,
+        },
+      },
+    },
     checks: [
       { name: "kitRepo", ok: isVelMcpRepo(opts.kitDir), detail: opts.kitDir },
       { name: "projectDir", ok: existsSync(opts.projectDir), detail: opts.projectDir },
       { name: "visionPython", ok: opts.provider !== "glasses-grounding" || existsSync(visionPython), detail: visionPython },
       { name: "visionModel", ok: opts.provider !== "glasses-grounding" || !visionModel.startsWith("/") || existsSync(visionModel), detail: visionModel },
+      { name: "allowedImageRoots", ok: allowedImageRoots.some((root) => existsSync(root)), detail: allowedImageRoots.join(", ") },
     ],
+    restartInstructions: restartInstructions(opts.target),
     modelDiscovery: discoverLocalModels(visionModel),
     nextPrompts: {
       image: `Use vel-glasses. Look at ${resolve(opts.kitDir, "examples/glasses-demo/dashboard.png")}. What should I click to approve the deployment? Return the target label and normalized coordinates. Do not click anything.`,
@@ -249,8 +281,15 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     model.path ? `    path: ${model.path}` : undefined,
   ].filter(Boolean).join("\n")).join("\n");
 
+  const title = payload.target === "codex"
+    ? "VEL MCP Codex setup wizard"
+    : payload.target === "opencode"
+      ? "VEL MCP OpenCode setup wizard"
+      : "VEL MCP generic setup wizard";
+  const restartLines = payload.restartInstructions.map((line) => `  ${line}`).join("\n");
+
   return [
-    payload.target === "codex" ? "VEL MCP Codex setup wizard" : "VEL MCP generic setup wizard",
+    title,
     "",
     payload.kit.exists ? `Kit: ${payload.kit.dir}` : `Kit missing: ${payload.kit.dir}`,
     payload.kit.exists ? "" : "Bootstrap with:",
@@ -272,8 +311,16 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     "Machine-readable MCP JSON:",
     JSON.stringify(payload.mcpJson, null, 2),
     "",
+    "OpenCode JSON:",
+    JSON.stringify(payload.opencodeJson, null, 2),
+    "",
     `Local manifest path: ${payload.localManifest}`,
+    `OpenCode config path: ${payload.opencodeConfigPath}`,
     `Write it with: vel-mcp install mcp --project-dir ${payload.codexForm.workingDirectory} --write`,
+    `Write OpenCode config with: vel-mcp install opencode --project-dir ${payload.codexForm.workingDirectory} --write`,
+    "",
+    "After installing:",
+    restartLines,
     "",
     "Local visual model discovery:",
     modelLines,
@@ -297,6 +344,10 @@ function bootstrap(opts: InstallOptions): void {
 
 export function writeManifest(path: string, mcpJson: unknown): void {
   writeFileSync(path, `${JSON.stringify(mcpJson, null, 2)}\n`, { flag: "wx" });
+}
+
+export function writeOpenCodeConfig(path: string, opencodeJson: unknown): void {
+  writeFileSync(path, `${JSON.stringify(opencodeJson, null, 2)}\n`, { flag: "wx" });
 }
 
 function bootstrapCommands(opts: InstallOptions): string[] {
@@ -362,10 +413,12 @@ export function helpText(): string {
     "Usage:",
     "  vel-mcp install mcp [--project-dir path] [--write] [--bootstrap]",
     "  vel-mcp install codex [--project-dir path] [--format human|json]",
+    "  vel-mcp install opencode [--project-dir path] [--write] [--format human|json]",
     "",
     "Examples:",
     "  npx @vel/mcp install mcp --project-dir . --bootstrap --write",
     "  pnpm dlx @vel/mcp install codex --project-dir .",
+    "  pnpm dlx @vel/mcp install opencode --project-dir . --write",
   ].join("\n");
 }
 
@@ -377,9 +430,29 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const opts = parseArgs(argv);
   if (opts.bootstrap) bootstrap(opts);
   const payload = buildInstallPayload(opts);
-  if (opts.write) writeManifest(payload.localManifest, payload.mcpJson);
+  if (opts.write && opts.target === "opencode") writeOpenCodeConfig(payload.opencodeConfigPath, payload.opencodeJson);
+  else if (opts.write) writeManifest(payload.localManifest, payload.mcpJson);
   if (opts.format === "json") console.log(JSON.stringify(payload, null, 2));
   else console.log(renderInstall(payload));
+}
+
+function restartInstructions(target: InstallOptions["target"]): string[] {
+  if (target === "opencode") {
+    return [
+      "Close and reopen the entire OpenCode process; starting a new chat is not enough.",
+      "Run `opencode mcp list` from the target project and confirm vel-glasses is connected.",
+    ];
+  }
+  if (target === "codex") {
+    return [
+      "Save the custom MCP entry in Codex and restart the Codex session if tools do not appear immediately.",
+      "Verify that vel-glasses appears in the available tool list before asking for image analysis.",
+    ];
+  }
+  return [
+    "Restart or reconnect the MCP client so it reloads local server configuration.",
+    "Confirm the client lists vel-glasses before asking it to inspect images or video.",
+  ];
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

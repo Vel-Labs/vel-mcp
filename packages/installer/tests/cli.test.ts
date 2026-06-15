@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildInstallPayload, helpText, parseArgs, renderInstall, writeManifest } from "../src/cli.js";
+import { buildInstallPayload, helpText, parseArgs, renderInstall, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
 
 describe("@vel/mcp installer", () => {
   it("parses npx-style generic MCP install options", () => {
@@ -46,8 +46,31 @@ describe("@vel/mcp installer", () => {
     expect(payload.codexForm.command).toBe("pnpm");
     expect(payload.codexForm.arguments).toEqual(["--dir", process.cwd(), "--filter", "@vel/glasses-mcp", "dev"]);
     expect(payload.codexForm.environmentVariables.VEL_GLASSES_PROVIDER).toBe("mock");
+    expect(payload.codexForm.environmentVariables.VEL_ALLOWED_IMAGE_ROOTS).toContain("/tmp/example-project");
     expect(payload.mcpJson.mcpServers["vel-glasses"].command).toBe("pnpm");
     expect(payload.localManifest).toBe("/tmp/example-project/.mcp.json");
+  });
+
+  it("builds OpenCode-native config with restart guidance", () => {
+    const payload = buildInstallPayload(parseArgs([
+      "install",
+      "opencode",
+      "--project-dir",
+      "/tmp/example-project",
+      "--kit-dir",
+      process.cwd(),
+      "--glasses-provider",
+      "mock",
+    ]));
+
+    expect(payload.target).toBe("opencode");
+    expect(payload.opencodeJson.$schema).toBe("https://opencode.ai/config.json");
+    expect(payload.opencodeJson.mcp["vel-glasses"].type).toBe("local");
+    expect(payload.opencodeJson.mcp["vel-glasses"].command).toEqual(["pnpm", "--dir", process.cwd(), "--filter", "@vel/glasses-mcp", "dev"]);
+    expect(payload.opencodeJson.mcp["vel-glasses"].cwd).toBe("/tmp/example-project");
+    expect(payload.opencodeJson.mcp["vel-glasses"].environment.VEL_ALLOWED_IMAGE_ROOTS).toContain(process.cwd());
+    expect(payload.opencodeConfigPath).toBe("/tmp/example-project/opencode.json");
+    expect(payload.restartInstructions.some((line) => line.includes("Close and reopen"))).toBe(true);
   });
 
   it("renders human wizard output with first image and video prompts", () => {
@@ -96,9 +119,35 @@ describe("@vel/mcp installer", () => {
     }
   });
 
+  it("writes an OpenCode config without overwriting", () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "vel-mcp-opencode-test-"));
+    const configPath = resolve(dir, "opencode.json");
+    try {
+      const payload = buildInstallPayload(parseArgs([
+        "install",
+        "opencode",
+        "--project-dir",
+        dir,
+        "--kit-dir",
+        process.cwd(),
+        "--glasses-provider",
+        "mock",
+      ]));
+
+      writeOpenCodeConfig(configPath, payload.opencodeJson);
+      const config = JSON.parse(readFileSync(configPath, "utf-8"));
+      expect(config.mcp["vel-glasses"].type).toBe("local");
+      expect(config.mcp["vel-glasses"].environment.VEL_GLASSES_PROVIDER).toBe("mock");
+      expect(() => writeOpenCodeConfig(configPath, payload.opencodeJson)).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("documents npx and pnpm dlx usage", () => {
     const out = helpText();
     expect(out).toContain("npx @vel/mcp install mcp");
     expect(out).toContain("pnpm dlx @vel/mcp install codex");
+    expect(out).toContain("pnpm dlx @vel/mcp install opencode");
   });
 });
