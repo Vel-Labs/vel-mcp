@@ -496,6 +496,8 @@ Use the configured MCP server named \`${serverName}\`.
 
 ## Natural Language Routing
 
+- If the user attaches an image or video, use that current attachment's available file path or artifact reference. Do not substitute earlier examples, prior test images, or filenames from conversation history.
+- If the host agent cannot access the attachment path, ask the user to save the file under an allowed image root such as the current project or \`~/vel/glasses/inputs\`, then retry with that path.
 - If the user asks "what do you see", "describe this", "review this screenshot", "does this look right", or asks for visual/design feedback, call \`glasses.review_visual\`.
 - If the user includes a focus phrase such as "focus on the checkout area", "look at the dialogue box", "inspect the button", or "check the right panel", call \`glasses.review_visual\` with \`focus\`.
 - If the user asks where something is, what to click, which button, target coordinates, or asks for a GUI element, call \`glasses.locate\`.
@@ -523,6 +525,8 @@ Use the configured MCP server named \`${serverName}\`.
 
 - Answer the user's actual question, not the internal tool plan.
 - Mention the tool only when useful for transparency.
+- Keep the answer scoped to the current image, URL, or video. Do not summarize other known images unless the user explicitly asks for comparison.
+- If the user asks for a short description, return a short description. If they ask for details, organize details by visible region.
 - Include normalized coordinates as \`bboxNorm1000\` and \`centerNorm1000\` when target location matters.
 - State when only the visible viewport was reviewed for URL captures.
 - Keep observations grounded in the image; mark interpretations as uncertainty.
@@ -540,6 +544,7 @@ Read ${skillRelativePath} for routing rules. In short:
 - Use \`glasses.locate\` for "where is it", click targets, buttons, objects, and coordinate requests.
 - Use \`glasses.ocr\` for visible text and copy-heavy screenshots.
 - Use \`glasses.capture_url\` before reviewing a URL or localhost page.
+- For attachments, use the current attachment path or artifact reference only. If it is unavailable, ask the user to save it under the project or \`~/vel/glasses/inputs\`.
 - Return observations, evidence, coordinates, OCR snippets when relevant, and uncertainty.`;
 }
 

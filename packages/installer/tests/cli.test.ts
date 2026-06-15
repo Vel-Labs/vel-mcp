@@ -198,11 +198,14 @@ describe("@vel/mcp installer", () => {
       expect(skill).toContain("The user does not need to mention MCP or tool names.");
       expect(skill).toContain("glasses.capture_url");
       expect(skill).toContain("bboxNorm1000");
+      expect(skill).toContain("Do not substitute earlier examples");
+      expect(skill).toContain("Keep the answer scoped to the current image");
 
       writeAgentInstructions(payload.agentInstructionsPath, payload.agentInstructions);
       const agents = readFileSync(payload.agentInstructionsPath, "utf-8");
       expect(agents).toContain("VEL-GLASSES:BEGIN");
       expect(agents).toContain("Read .vel/skills/vel-glasses/SKILL.md");
+      expect(agents).toContain("For attachments, use the current attachment path");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
