@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { createGlassesServer } from "./server.js";
 import { loadVelConfig } from "@vel/core";
 import { videoScanTool } from "./tools/videoScan.js";
+import { captureUrlTool } from "./tools/captureUrl.js";
+import { reviewVisualTool } from "./tools/reviewVisual.js";
 import { discoverModels } from "./services/modelDiscovery.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -89,6 +91,55 @@ program
       if (!provider.ask) throw new Error("Provider does not support ask");
       const result = await provider.ask({ image: imageRef(imagePath), question });
       console.log(fmt(result.data));
+    });
+  });
+
+program
+  .command("capture-url <url>")
+  .description("Capture a URL or localhost page screenshot as a VEL artifact")
+  .option("--width <px>", "Viewport width", "1280")
+  .option("--height <px>", "Viewport height", "800")
+  .option("--full-page", "Capture a bounded top-of-page screenshot")
+  .option("--wait-ms <ms>", "Wait after page load", "500")
+  .option("--timeout-ms <ms>", "Navigation and selector timeout", "15000")
+  .option("--selector <selector>", "Capture a specific visible selector")
+  .option("--max-height-px <px>", "Maximum full-page capture height", "10000")
+  .action(async (url, opts) => {
+    await withServer(async ({ artifactStore }) => {
+      const tool = captureUrlTool(artifactStore);
+      const result = await tool.handler({
+        url,
+        viewport: { width: parseInt(opts.width, 10), height: parseInt(opts.height, 10) },
+        fullPage: Boolean(opts.fullPage),
+        waitMs: parseInt(opts.waitMs, 10),
+        timeoutMs: parseInt(opts.timeoutMs, 10),
+        selector: opts.selector,
+        maxHeightPx: parseInt(opts.maxHeightPx, 10),
+      });
+      const payload = JSON.parse(String((result as any).content?.[0]?.text ?? "{}"));
+      console.log(fmt(payload.result ?? payload));
+    });
+  });
+
+program
+  .command("review <image>")
+  .description("Run whole-image review with optional focused region inspection and OCR")
+  .option("--focus <query>", "Optional focus target or area")
+  .option("--mode <mode>", "Mode: general, ui_review, target_check, design_revision", "general")
+  .option("--detail <level>", "Detail level: low, medium, high", "medium")
+  .option("--include-ocr", "Force OCR pass")
+  .action(async (imagePath, opts) => {
+    await withServer(async ({ router, imageLoader, artifactStore }) => {
+      const tool = reviewVisualTool(router, imageLoader, artifactStore);
+      const result = await tool.handler({
+        image: imageRef(imagePath),
+        focus: opts.focus,
+        mode: opts.mode,
+        detail: opts.detail,
+        includeOcr: opts.includeOcr ? true : undefined,
+      });
+      const payload = JSON.parse(String((result as any).content?.[0]?.text ?? "{}"));
+      console.log(fmt(payload.result ?? payload));
     });
   });
 

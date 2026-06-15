@@ -31,6 +31,7 @@ describe("glasses.list_providers", () => {
       const { router, supervisor } = createGlassesServer({ config: undefined });
       expect(router.get("glasses-grounding").id).toBe("glasses-grounding");
       expect(router.getForTool("locate").id).toBe("glasses-grounding");
+      expect(router.getForTool("ocr").id).toBe("glasses-grounding");
       await supervisor.stopAll();
     } finally {
       if (previousProvider === undefined) delete process.env.VEL_GLASSES_PROVIDER;
@@ -59,6 +60,7 @@ describe("glasses.list_providers", () => {
       const { router, supervisor } = createGlassesServer({ config: undefined });
       expect(router.get("glasses-vlm").id).toBe("glasses-vlm");
       expect(router.getForTool("locate").id).toBe("glasses-grounding");
+      expect(router.getForTool("ocr").id).toBe("glasses-grounding");
       expect(router.getForTool("inspect_image").id).toBe("glasses-vlm");
       expect(router.getForTool("describe").id).toBe("glasses-vlm");
       expect(router.getForTool("ask").id).toBe("glasses-vlm");

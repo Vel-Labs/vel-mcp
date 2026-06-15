@@ -104,6 +104,28 @@ export const DetectAnomaliesInputSchema = ProviderSchema.extend({
   sensitivity: z.enum(["low", "medium", "high"]).default("medium"),
 }).strict();
 
+export const CaptureUrlInputSchema = z.object({
+  url: z.string().url(),
+  viewport: z.object({
+    width: z.number().int().min(320).max(3840).default(1280),
+    height: z.number().int().min(240).max(2160).default(800),
+  }).default({ width: 1280, height: 800 }),
+  fullPage: z.boolean().default(false),
+  waitMs: z.number().int().min(0).max(30_000).default(500),
+  timeoutMs: z.number().int().min(1_000).max(60_000).default(15_000),
+  selector: z.string().min(1).optional(),
+  maxHeightPx: z.number().int().min(240).max(50_000).default(10_000),
+}).strict();
+
+export const ReviewVisualInputSchema = z.object({
+  image: ImageRefSchema.optional(),
+  screenshotArtifactId: z.string().min(1).optional(),
+  focus: z.string().min(1).optional(),
+  mode: z.enum(["general", "ui_review", "target_check", "design_revision"]).default("general"),
+  detail: z.enum(["low", "medium", "high"]).default("medium"),
+  includeOcr: z.boolean().optional(),
+}).strict();
+
 export const ListProvidersInputSchema = ProviderSchema.extend({}).strict();
 
 export const SetupInputSchema = ProviderSchema.extend({}).strict();
@@ -119,5 +141,7 @@ export type DescribeInput = z.infer<typeof DescribeInputSchema>;
 export type AskInput = z.infer<typeof AskInputSchema>;
 export type ReadDocumentInput = z.infer<typeof ReadDocumentInputSchema>;
 export type DetectAnomaliesInput = z.infer<typeof DetectAnomaliesInputSchema>;
+export type CaptureUrlInput = z.infer<typeof CaptureUrlInputSchema>;
+export type ReviewVisualInput = z.infer<typeof ReviewVisualInputSchema>;
 export type ListProvidersInput = z.infer<typeof ListProvidersInputSchema>;
 export type SetupInput = z.infer<typeof SetupInputSchema>;

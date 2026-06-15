@@ -83,7 +83,7 @@ Agent sequence:
 
 ## Flow D: Webpage URL or Localhost
 
-`vel-glasses` currently analyzes images and videos. It does not browse web pages by itself.
+`vel-glasses` can capture bounded screenshots with `glasses.capture_url`, then analyze the resulting screenshot artifact.
 
 For a request like:
 
@@ -91,16 +91,10 @@ For a request like:
 
 Agent sequence:
 
-1. Use the host harness or browser automation to capture a screenshot of the page or viewport.
-2. Save the screenshot under an allowed image root, such as the target project directory.
-3. Pass the screenshot file path to `glasses.inspect_image`.
-4. If the user names a page section, call `glasses.locate` for that section and `glasses.inspect_region` on the located box.
-5. For long pages, capture multiple screenshots or full-page slices, then review each slice with frame/page identifiers.
-
-Future product tool:
-
-- `glasses.review_ui`: accepts an image or screenshot artifact plus optional focus query and runs the full workflow.
-- `glasses.capture_url`: optional later tool only if the product chooses to make browser capture part of Glasses rather than leaving capture to the host harness.
+1. Call `glasses.capture_url` with the URL and bounded viewport/full-page options.
+2. Pass the returned `artifactId` to `glasses.review_visual` as `screenshotArtifactId`.
+3. If the user names a page section, provide that phrase as `focus` so review runs LocateAnything and region inspection.
+4. For long pages, capture bounded full-page slices or multiple viewport screenshots, then review each slice with frame/page identifiers.
 
 ## Flow E: Design Revision Loop
 
@@ -137,16 +131,11 @@ When the user provides a URL:
 
 ## Implementation Roadmap
 
-1. Add a first-class `glasses.review_visual` or `glasses.review_ui` tool that orchestrates:
-   - whole-image inspection,
-   - focus locate,
-   - region crop inspection,
-   - optional OCR,
-   - merged structured notes.
+1. Harden `glasses.review_visual` with real eval fixtures and UX-specific scoring.
 2. Add eval fixtures for:
    - focus query over a dashboard,
    - text-heavy screen,
    - no-text visual composition,
    - before/after CTA revision,
    - low-confidence target requiring Qwen verification.
-3. Decide whether URL capture belongs in Glasses or remains a host-harness responsibility.
+3. Decide whether `glasses.review_ui` should become an alias or remain a `review_visual` mode.

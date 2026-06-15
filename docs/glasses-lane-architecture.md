@@ -109,7 +109,7 @@ roles:
     preferred: builtin_ocr
     fallback:
       - locateanything_3b_mlx
-      - qwen3_vl_8b_quality
+      - qwen3_vl_4b_quality
 
   video_frame_vlm:
     preferred: qwen3_vl_4b_default

@@ -19,6 +19,8 @@ import { readDocumentTool } from "./tools/readDocument.js";
 import { detectAnomaliesTool } from "./tools/detectAnomalies.js";
 import { listProvidersTool } from "./tools/listProviders.js";
 import { setupTool } from "./tools/setup.js";
+import { captureUrlTool } from "./tools/captureUrl.js";
+import { reviewVisualTool } from "./tools/reviewVisual.js";
 
 export interface GlassesServerOptions {
   auditStore?: string;
@@ -123,6 +125,8 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
   registerVelTool(server, askTool(router, imageLoader), auditOpts);
   registerVelTool(server, readDocumentTool(router, imageLoader), auditOpts);
   registerVelTool(server, detectAnomaliesTool(router, imageLoader), auditOpts);
+  registerVelTool(server, captureUrlTool(artifactStore), auditOpts);
+  registerVelTool(server, reviewVisualTool(router, imageLoader, artifactStore), auditOpts);
   registerVelTool(server, listProvidersTool(router), auditOpts);
   registerVelTool(server, setupTool(router), auditOpts);
   return { server, router, audit, supervisor, modelRegistry, imageLoader, artifactStore };
@@ -149,6 +153,7 @@ function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string,
 
   if (process.env.VEL_VISION_MODEL) {
     roles.grounding = withPreferredRole(roles.grounding, process.env.VEL_VISION_MODEL);
+    roles.ocr = withPreferredRole(roles.ocr, process.env.VEL_VISION_MODEL);
     toolToRole.locate ??= "grounding";
     toolToRole.ocr ??= "grounding";
     toolToRole.video_scan ??= "grounding";

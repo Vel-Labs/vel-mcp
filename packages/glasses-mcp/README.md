@@ -10,6 +10,8 @@ Vision/OCR/grounding MCP package for VEL.
 - `glasses.inspect_region`
 - `glasses.compare`
 - `glasses.video_scan`
+- `glasses.capture_url`
+- `glasses.review_visual`
 
 ## Providers
 
