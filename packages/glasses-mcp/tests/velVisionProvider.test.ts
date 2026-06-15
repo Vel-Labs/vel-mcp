@@ -132,6 +132,21 @@ describe("VelVisionProvider integration (fake worker)", () => {
     expect(result.data.observations.length).toBeGreaterThan(0);
   });
 
+  it("does not use a grounding-only provider for open-ended image inspection", async () => {
+    const groundingProvider = makeProvider(supervisor, { role: "grounding", providerId: "glasses-grounding" });
+    const result = await groundingProvider.inspectImage({
+      image: { kind: "file_path", value: "/fake/test.png" },
+      detail: "medium",
+      includeText: true,
+      includeObjects: true,
+      includeLayout: true
+    });
+
+    expect(result.provider.name).toBe("glasses-grounding");
+    expect(result.data.observations).toEqual([]);
+    expect(result.warnings.some((warning) => warning.includes("VEL_VISION_VLM_MODEL"))).toBe(true);
+  });
+
   it("locate with includeRawModelOutput preserves raw answer", async () => {
     const result = await provider.locate({
       image: { kind: "file_path", value: "/fake/test.png" },

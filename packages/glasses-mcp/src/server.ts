@@ -129,14 +129,14 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
 }
 
 function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string, unknown> | undefined {
-  if (!process.env.VEL_VISION_MODEL) return config;
+  if (!process.env.VEL_VISION_MODEL && !process.env.VEL_VISION_VLM_MODEL) return config;
 
   const models = Array.isArray(config?.models) ? [...config.models] : [];
   const roles = { ...((config?.roles as Record<string, unknown> | undefined) ?? {}) };
   const toolToRole = { ...((config?.toolToRole as Record<string, string> | undefined) ?? {}) };
   const providers = { ...((config?.providers as Record<string, Record<string, unknown>> | undefined) ?? {}) };
 
-  if (!models.some((model) => (model as Record<string, unknown>).id === process.env.VEL_VISION_MODEL)) {
+  if (process.env.VEL_VISION_MODEL && !models.some((model) => (model as Record<string, unknown>).id === process.env.VEL_VISION_MODEL)) {
     models.push({
       id: process.env.VEL_VISION_MODEL,
       displayName: "VEL_VISION_MODEL",
@@ -147,16 +147,43 @@ function withEnvVisionDefaults(config?: Record<string, unknown>): Record<string,
     });
   }
 
-  roles.grounding ??= { preferred: process.env.VEL_VISION_MODEL, fallback: [] };
-  toolToRole.locate ??= "grounding";
-  toolToRole.ocr ??= "grounding";
-  toolToRole.video_scan ??= "grounding";
-  providers["glasses-grounding"] ??= {};
-  if (process.env.VEL_VISION_PYTHON && !providers["glasses-grounding"].python) {
-    providers["glasses-grounding"] = {
-      ...providers["glasses-grounding"],
-      python: process.env.VEL_VISION_PYTHON,
-    };
+  if (process.env.VEL_VISION_MODEL) {
+    roles.grounding ??= { preferred: process.env.VEL_VISION_MODEL, fallback: [] };
+    toolToRole.locate ??= "grounding";
+    toolToRole.ocr ??= "grounding";
+    toolToRole.video_scan ??= "grounding";
+    providers["glasses-grounding"] ??= {};
+    if (process.env.VEL_VISION_PYTHON && !providers["glasses-grounding"].python) {
+      providers["glasses-grounding"] = {
+        ...providers["glasses-grounding"],
+        python: process.env.VEL_VISION_PYTHON,
+      };
+    }
+  }
+
+  if (process.env.VEL_VISION_VLM_MODEL) {
+    if (!models.some((model) => (model as Record<string, unknown>).id === process.env.VEL_VISION_VLM_MODEL)) {
+      models.push({
+        id: process.env.VEL_VISION_VLM_MODEL,
+        displayName: "VEL_VISION_VLM_MODEL",
+        kind: "mlx-vlm",
+        role: "general_vlm",
+        enabled: true,
+        taskAffinity: ["inspect_image", "describe", "ask", "document-understanding"],
+      });
+    }
+    roles.general_vlm ??= { preferred: process.env.VEL_VISION_VLM_MODEL, fallback: [] };
+    toolToRole.inspect_image ??= "general_vlm";
+    toolToRole.describe ??= "general_vlm";
+    toolToRole.ask ??= "general_vlm";
+    toolToRole.inspect_region ??= "general_vlm";
+    providers["glasses-vlm"] ??= {};
+    if (process.env.VEL_VISION_PYTHON && !providers["glasses-vlm"].python) {
+      providers["glasses-vlm"] = {
+        ...providers["glasses-vlm"],
+        python: process.env.VEL_VISION_PYTHON,
+      };
+    }
   }
 
   return {

@@ -15,6 +15,8 @@ describe("@vel/mcp installer", () => {
       "/tmp/vel-mcp-kit",
       "--glasses-provider",
       "mock",
+      "--vision-vlm-model",
+      "/tmp/qwen-vlm",
       "--server-name",
       "vel-glasses-local",
       "--format",
@@ -25,6 +27,7 @@ describe("@vel/mcp installer", () => {
     expect(opts.projectDir).toBe("/tmp/example-project");
     expect(opts.kitDir).toBe("/tmp/vel-mcp-kit");
     expect(opts.provider).toBe("mock");
+    expect(opts.visionVlmModel).toBe("/tmp/qwen-vlm");
     expect(opts.serverName).toBe("vel-glasses-local");
     expect(opts.format).toBe("json");
   });
@@ -49,6 +52,46 @@ describe("@vel/mcp installer", () => {
     expect(payload.codexForm.environmentVariables.VEL_ALLOWED_IMAGE_ROOTS).toContain("/tmp/example-project");
     expect(payload.mcpJson.mcpServers["vel-glasses"].command).toBe("pnpm");
     expect(payload.localManifest).toBe("/tmp/example-project/.mcp.json");
+  });
+
+  it("includes a configured general VLM model for inspect_image, describe, and ask", () => {
+    const payload = buildInstallPayload(parseArgs([
+      "install",
+      "opencode",
+      "--project-dir",
+      "/tmp/example-project",
+      "--kit-dir",
+      process.cwd(),
+      "--vision-vlm-model",
+      "/tmp/qwen-vlm",
+    ]));
+
+    expect(payload.opencodeJson.mcp["vel-glasses"].environment.VEL_VISION_VLM_MODEL).toBe("/tmp/qwen-vlm");
+    expect(payload.checks.find((check) => check.name === "visionVlmModel")?.ok).toBe(true);
+  });
+
+  it("surfaces missing general VLM readiness for open-ended image tools", () => {
+    const previousVlm = process.env.VEL_VISION_VLM_MODEL;
+    delete process.env.VEL_VISION_VLM_MODEL;
+
+    try {
+      const payload = buildInstallPayload(parseArgs([
+        "install",
+        "opencode",
+        "--project-dir",
+        "/tmp/example-project",
+        "--kit-dir",
+        process.cwd(),
+      ]));
+
+      const check = payload.checks.find((entry) => entry.name === "visionVlmModel");
+      expect(check?.ok).toBe(false);
+      expect(check?.detail).toContain("inspect_image");
+      expect(payload.modelDiscovery.some((model) => model.role === "general_vlm")).toBe(true);
+    } finally {
+      if (previousVlm === undefined) delete process.env.VEL_VISION_VLM_MODEL;
+      else process.env.VEL_VISION_VLM_MODEL = previousVlm;
+    }
   });
 
   it("builds OpenCode-native config with restart guidance", () => {
@@ -93,6 +136,7 @@ describe("@vel/mcp installer", () => {
     expect(out).toContain("examples/glasses-demo/dashboard.png");
     expect(out).toContain("First video prompt:");
     expect(out).toContain("examples/glasses-demo/button-appears.mp4");
+    expect(out).toContain("Qwen3-VL");
   });
 
   it("writes a local .mcp.json manifest without overwriting", () => {

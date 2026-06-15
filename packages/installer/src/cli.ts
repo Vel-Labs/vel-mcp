@@ -17,6 +17,7 @@ interface InstallOptions {
   provider: string;
   visionPython?: string;
   visionModel?: string;
+  visionVlmModel?: string;
   format: "human" | "json";
   write: boolean;
   bootstrap: boolean;
@@ -97,6 +98,38 @@ const MODEL_SUGGESTIONS = [
     licenseWarning: "Non-commercial (inherits from upstream NVIDIA model)",
   },
   {
+    id: "mlx-community/Qwen3-VL-8B-Thinking-8bit",
+    displayName: "Qwen3-VL-8B Thinking 8-bit (MLX)",
+    role: "general_vlm",
+    kind: "mlx-vlm",
+    sizeGb: 9.5,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+  },
+  {
+    id: "mlx-community/Qwen3-VL-4B-Instruct-5bit",
+    displayName: "Qwen3-VL-4B Instruct 5-bit (MLX)",
+    role: "general_vlm",
+    kind: "mlx-vlm",
+    sizeGb: 5.0,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+  },
+  {
+    id: "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+    displayName: "Qwen2.5-VL-7B Instruct 4-bit (MLX)",
+    role: "general_vlm",
+    kind: "mlx-vlm",
+    sizeGb: 5.5,
+    licenseWarning: "Apache 2.0; verify downstream model card terms before production use.",
+  },
+  {
+    id: "mlx-community/InternVL3-8B-MLX-4bit",
+    displayName: "InternVL3-8B 4-bit (MLX)",
+    role: "general_vlm",
+    kind: "mlx-vlm",
+    sizeGb: 5.5,
+    licenseWarning: "Verify upstream model card terms before production use.",
+  },
+  {
     id: "sahilchachra/locateanything-3b-mxfp4-mlx",
     displayName: "LocateAnything-3B MXFP4 4-bit (MLX)",
     role: "spatial-grounding",
@@ -169,6 +202,10 @@ export function parseArgs(argv: string[]): InstallOptions {
         opts.visionModel = requiredValue(arg, value);
         i++;
         break;
+      case "--vision-vlm-model":
+        opts.visionVlmModel = requiredValue(arg, value);
+        i++;
+        break;
       case "--format":
         if (value !== "human" && value !== "json") throw new Error("--format must be human or json");
         opts.format = value;
@@ -197,12 +234,15 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
   const visionPython = opts.visionPython ?? process.env.VEL_VISION_PYTHON ?? resolve(opts.kitDir, ".vel/venvs/glasses-mlx/bin/python");
   const likelyModel = resolve(homedir(), "30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16");
   const visionModel = opts.visionModel ?? process.env.VEL_VISION_MODEL ?? (existsSync(likelyModel) ? likelyModel : "mlx-community/LocateAnything-3B-bf16");
+  const discoveredVlmModel = firstAvailableModelPath(MODEL_SUGGESTIONS.filter((model) => model.role === "general_vlm").map((model) => model.id));
+  const visionVlmModel = opts.visionVlmModel ?? process.env.VEL_VISION_VLM_MODEL ?? discoveredVlmModel;
   const allowedImageRoots = [opts.projectDir, opts.kitDir, resolve(homedir(), "vel", "glasses", "inputs")];
   const env: Record<string, string> = { VEL_GLASSES_PROVIDER: opts.provider };
   env.VEL_ALLOWED_IMAGE_ROOTS = JSON.stringify(allowedImageRoots);
   if (opts.provider === "glasses-grounding") {
     env.VEL_VISION_PYTHON = visionPython;
     env.VEL_VISION_MODEL = visionModel;
+    if (visionVlmModel) env.VEL_VISION_VLM_MODEL = visionVlmModel;
   }
 
   const args = ["--dir", opts.kitDir, "--filter", "@vel/glasses-mcp", "dev"];
@@ -258,10 +298,11 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
       { name: "projectDir", ok: existsSync(opts.projectDir), detail: opts.projectDir },
       { name: "visionPython", ok: opts.provider !== "glasses-grounding" || existsSync(visionPython), detail: visionPython },
       { name: "visionModel", ok: opts.provider !== "glasses-grounding" || !visionModel.startsWith("/") || existsSync(visionModel), detail: visionModel },
+      { name: "visionVlmModel", ok: opts.provider !== "glasses-grounding" || !!visionVlmModel, detail: visionVlmModel ?? "not configured; inspect_image/describe/ask require a general VLM" },
       { name: "allowedImageRoots", ok: allowedImageRoots.some((root) => existsSync(root)), detail: allowedImageRoots.join(", ") },
     ],
     restartInstructions: restartInstructions(opts.target),
-    modelDiscovery: discoverLocalModels(visionModel),
+    modelDiscovery: discoverLocalModels(visionModel, visionVlmModel),
     nextPrompts: {
       image: `Use vel-glasses. Look at ${resolve(opts.kitDir, "examples/glasses-demo/dashboard.png")}. What should I click to approve the deployment? Return the target label and normalized coordinates. Do not click anything.`,
       video: `Use vel-glasses. Scan ${resolve(opts.kitDir, "examples/glasses-demo/button-appears.mp4")}. When does the blue Approve button become visible? Return timestamps and frame references.`,
@@ -372,14 +413,15 @@ function bootstrapCommands(opts: InstallOptions): string[] {
   return commands;
 }
 
-function discoverLocalModels(activeModel: string): ModelSuggestion[] {
+function discoverLocalModels(activeModel: string, activeVlmModel?: string): ModelSuggestion[] {
   return MODEL_SUGGESTIONS.map((model) => {
     const path = modelPath(model.id);
     const status = path && existsSync(path) ? "available" : "not-installed";
+    const activeForRole = model.role === "general_vlm" ? activeVlmModel : activeModel;
     return {
       ...model,
       status,
-      runtimeReady: status === "available" && (activeModel === path || activeModel === model.id || activeModel.endsWith(model.id)),
+      runtimeReady: status === "available" && !!activeForRole && (activeForRole === path || activeForRole === model.id || activeForRole.endsWith(model.id)),
       path: status === "available" ? path : undefined,
       huggingFaceUrl: `https://huggingface.co/${model.id}`,
       setupInstructions: [
@@ -394,6 +436,14 @@ function discoverLocalModels(activeModel: string): ModelSuggestion[] {
 
 function modelPath(id: string): string {
   return resolve(homedir(), "30_AI-Lab/_cache/models", id);
+}
+
+function firstAvailableModelPath(ids: string[]): string | undefined {
+  for (const id of ids) {
+    const path = modelPath(id);
+    if (existsSync(path)) return path;
+  }
+  return undefined;
 }
 
 function findRepo(start: string): string | undefined {
@@ -424,8 +474,8 @@ export function helpText(): string {
   return [
     "Usage:",
     "  vel-mcp install mcp [--project-dir path] [--write] [--bootstrap]",
-    "  vel-mcp install codex [--project-dir path] [--format human|json]",
-    "  vel-mcp install opencode [--project-dir path] [--write] [--format human|json]",
+    "  vel-mcp install codex [--project-dir path] [--vision-vlm-model path] [--format human|json]",
+    "  vel-mcp install opencode [--project-dir path] [--vision-vlm-model path] [--write] [--format human|json]",
     "",
     "Examples:",
     "  npx @vel/mcp install mcp --project-dir . --bootstrap --write",

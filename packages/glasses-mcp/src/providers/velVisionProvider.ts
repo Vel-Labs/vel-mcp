@@ -64,6 +64,9 @@ export class VelVisionProvider implements VisionProvider {
 
   async inspectImage(input: InspectImageInput): Promise<VisionProviderResult<{ observations: string[] }>> {
     const started = Date.now();
+    if (this.isGroundingOnly()) {
+      return this.unsupportedVlmResult(started, "glasses.inspect_image");
+    }
     const response = await this.request({
       op: "describe",
       image: input.image,
@@ -138,6 +141,10 @@ export class VelVisionProvider implements VisionProvider {
 
   async describe(input: DescribeInput): Promise<VisionProviderResult<{ description: string; style?: string }>> {
     const started = Date.now();
+    if (this.isGroundingOnly()) {
+      const warning = "glasses.describe requires a general VLM. Configure VEL_VISION_VLM_MODEL; the current provider is spatial grounding only.";
+      return { provider: providerMeta(this.id), timingMs: Date.now() - started, warnings: [licenseWarning(), warning], data: { description: "", style: input.style } };
+    }
     const prompt = buildDescribePrompt(input.style);
     const response = await this.request({ op: "describe", image: input.image, prompt });
     if (!response.ok) return failure(started, response.error?.message ?? "VLM describe failed");
@@ -146,6 +153,10 @@ export class VelVisionProvider implements VisionProvider {
 
   async ask(input: AskInput): Promise<VisionProviderResult<{ answer: string; confidence?: number }>> {
     const started = Date.now();
+    if (this.isGroundingOnly()) {
+      const warning = "glasses.ask requires a general VLM. Configure VEL_VISION_VLM_MODEL; the current provider is spatial grounding only.";
+      return { provider: providerMeta(this.id), timingMs: Date.now() - started, warnings: [licenseWarning(), warning], data: { answer: "", confidence: 0 } };
+    }
     const response = await this.request({ op: "ask", image: input.image, question: input.question });
     if (!response.ok) return failure(started, response.error?.message ?? "VLM ask failed");
     return { provider: providerMeta(this.id), timingMs: Date.now() - started, warnings: [licenseWarning()], data: { answer: String((response.result as any)?.answer ?? "") } };
@@ -213,7 +224,21 @@ export class VelVisionProvider implements VisionProvider {
   }
 
   private activeModel(): string {
-    return process.env.VEL_VISION_MODEL ?? this.config.model ?? "mlx-community/LocateAnything-3B-bf16";
+    return this.config.model ?? process.env.VEL_VISION_MODEL ?? "mlx-community/LocateAnything-3B-bf16";
+  }
+
+  private isGroundingOnly(): boolean {
+    return this.config.role === "grounding";
+  }
+
+  private unsupportedVlmResult(started: number, toolName: string): VisionProviderResult<{ observations: string[] }> {
+    const warning = `${toolName} requires a general VLM. Configure VEL_VISION_VLM_MODEL; the current provider is spatial grounding only.`;
+    return {
+      provider: providerMeta(this.id),
+      timingMs: Date.now() - started,
+      warnings: [licenseWarning(), warning],
+      data: { observations: [] },
+    };
   }
 }
 
