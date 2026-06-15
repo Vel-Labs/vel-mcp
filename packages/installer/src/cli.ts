@@ -7,6 +7,9 @@ import { dirname, resolve } from "node:path";
 const DEFAULT_REPO_URL = "https://github.com/Vel-Labs/vel-mcp.git";
 const DEFAULT_KIT_DIR = resolve(homedir(), ".vel/kits/vel-mcp");
 const OPENCODE_TIMEOUT_MS = 180_000;
+const AGENT_SKILL_RELATIVE_PATH = ".vel/skills/vel-glasses/SKILL.md";
+const AGENT_INSTRUCTIONS_BEGIN = "<!-- VEL-GLASSES:BEGIN -->";
+const AGENT_INSTRUCTIONS_END = "<!-- VEL-GLASSES:END -->";
 
 interface InstallOptions {
   target: "mcp" | "codex" | "opencode";
@@ -69,6 +72,10 @@ interface InstallPayload {
   };
   localManifest: string;
   opencodeConfigPath: string;
+  agentSkillPath: string;
+  agentSkill: string;
+  agentInstructionsPath: string;
+  agentInstructions: string;
   mcpJson: {
     mcpServers: Record<string, {
       command: string;
@@ -280,6 +287,10 @@ export function buildInstallPayload(opts: InstallOptions): InstallPayload {
     },
     localManifest: resolve(opts.projectDir, ".mcp.json"),
     opencodeConfigPath: resolve(opts.projectDir, "opencode.json"),
+    agentSkillPath: resolve(opts.projectDir, AGENT_SKILL_RELATIVE_PATH),
+    agentSkill: agentSkillText(opts.serverName),
+    agentInstructionsPath: resolve(opts.projectDir, "AGENTS.md"),
+    agentInstructions: agentInstructionsText(AGENT_SKILL_RELATIVE_PATH),
     mcpJson: {
       mcpServers: {
         [opts.serverName]: {
@@ -375,6 +386,8 @@ export function renderInstall(payload: ReturnType<typeof buildInstallPayload>): 
     "",
     `Local manifest path: ${payload.localManifest}`,
     `OpenCode config path: ${payload.opencodeConfigPath}`,
+    `Agent skill path: ${payload.agentSkillPath}`,
+    `Agent instructions path: ${payload.agentInstructionsPath}`,
     `Write it with: vel-mcp install mcp --project-dir ${payload.codexForm.workingDirectory} --write`,
     `Write OpenCode config with: vel-mcp install opencode --project-dir ${payload.codexForm.workingDirectory} --write`,
     "",
@@ -397,7 +410,7 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
     {
       role: "grounding",
       purpose: "Find visual targets and return deterministic coordinates.",
-      tools: ["glasses.locate", "glasses.ocr", "glasses.video_scan event localization"],
+      tools: ["glasses.locate", "glasses.ocr", "glasses.review_visual focus grounding", "glasses.video_scan event localization"],
       limitations: [
         "LocateAnything-style grounding is not a general image narrator.",
         "Use it for boxes, points, GUI elements, and localized text, not open-ended scene descriptions."
@@ -407,7 +420,7 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
     {
       role: "general_vlm",
       purpose: "Describe images, answer visual questions, and reason over screenshots/documents.",
-      tools: ["glasses.inspect_image", "glasses.describe", "glasses.ask"],
+      tools: ["glasses.inspect_image", "glasses.describe", "glasses.ask", "glasses.review_visual whole-image and region reasoning"],
       limitations: [
         "Qwen3-VL-4B-Instruct-5bit is the recommended default; Qwen3-VL-4B-Instruct-8bit is the local quality option.",
         "General VLMs can be slower and less precise at click coordinates than grounding models.",
@@ -455,6 +468,79 @@ export function writeOpenCodeConfig(path: string, opencodeJson: unknown): void {
     },
   };
   writeFileSync(path, `${JSON.stringify(merged, null, 2)}\n`);
+}
+
+export function writeAgentSkill(path: string, skillText: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, skillText.endsWith("\n") ? skillText : `${skillText}\n`);
+}
+
+export function writeAgentInstructions(path: string, instructions: string): void {
+  const existing = existsSync(path) ? readFileSync(path, "utf-8") : "";
+  const block = `${AGENT_INSTRUCTIONS_BEGIN}\n${instructions.trim()}\n${AGENT_INSTRUCTIONS_END}`;
+  const pattern = new RegExp(`${escapeRegExp(AGENT_INSTRUCTIONS_BEGIN)}[\\s\\S]*?${escapeRegExp(AGENT_INSTRUCTIONS_END)}`);
+  const next = pattern.test(existing)
+    ? existing.replace(pattern, block)
+    : [existing.trimEnd(), block].filter(Boolean).join("\n\n");
+  writeFileSync(path, `${next}\n`);
+}
+
+function agentSkillText(serverName: string): string {
+  return `# Vel Glasses Visual Skill
+
+Use this skill when the user asks an agent to look at an image, screenshot, UI, webpage, local app, video frame, visual design, visible text, or click target. The user does not need to mention MCP or tool names.
+
+## MCP Server
+
+Use the configured MCP server named \`${serverName}\`.
+
+## Natural Language Routing
+
+- If the user asks "what do you see", "describe this", "review this screenshot", "does this look right", or asks for visual/design feedback, call \`glasses.review_visual\`.
+- If the user includes a focus phrase such as "focus on the checkout area", "look at the dialogue box", "inspect the button", or "check the right panel", call \`glasses.review_visual\` with \`focus\`.
+- If the user asks where something is, what to click, which button, target coordinates, or asks for a GUI element, call \`glasses.locate\`.
+- If the user asks what text is visible, asks about copy, or the image is text-heavy, call \`glasses.ocr\` or use \`glasses.review_visual\` in \`ui_review\` mode.
+- If the user gives a URL or localhost address, call \`glasses.capture_url\` first, then pass the returned \`artifactId\` to \`glasses.review_visual\` as \`screenshotArtifactId\`.
+- If the user compares before/after images, use \`glasses.compare\`, then \`glasses.review_visual\` on the relevant focus area.
+- If the user gives video, use \`glasses.video_scan\` with bounded \`fps\`, \`maxDurationSec\`, and \`maxBytes\`.
+
+## Tool Defaults
+
+- Use \`mode: "ui_review"\` for app screens, websites, dashboards, forms, game UI, and social/media screenshots.
+- Use \`mode: "target_check"\` when the user needs a specific target, object, text span, button, or coordinates.
+- Use \`mode: "design_revision"\` for before/after visual changes.
+- Return structured observations, coordinates, evidence, OCR snippets when relevant, uncertainty, and suggested next actions.
+- Do not claim certainty when the tool reports missing confidence or weak grounding.
+- Do not click, type, browse, or mutate external state just because \`glasses.locate\` returns coordinates.
+
+## Model Roles
+
+- LocateAnything is the grounding lane. Use it for boxes, points, GUI targets, and localized text. It is not a general image narrator.
+- Qwen3-VL is the general visual reasoning lane. Use it for whole-image descriptions, critique, and focused region interpretation. It is slower and less precise for click coordinates.
+- \`glasses.review_visual\` is the preferred orchestrator when the user's request mixes image understanding, focus regions, OCR, and confidence checks.
+
+## Response Style
+
+- Answer the user's actual question, not the internal tool plan.
+- Mention the tool only when useful for transparency.
+- Include normalized coordinates as \`bboxNorm1000\` and \`centerNorm1000\` when target location matters.
+- State when only the visible viewport was reviewed for URL captures.
+- Keep observations grounded in the image; mark interpretations as uncertainty.
+`;
+}
+
+function agentInstructionsText(skillRelativePath: string): string {
+  return `## Vel Glasses MCP
+
+When the user asks visual questions about images, screenshots, UI, local webpages, video frames, visible text, or click targets, use the local Vel Glasses MCP server instead of answering from text alone.
+
+Read ${skillRelativePath} for routing rules. In short:
+
+- Use \`glasses.review_visual\` for normal visual review and focused screenshot questions.
+- Use \`glasses.locate\` for "where is it", click targets, buttons, objects, and coordinate requests.
+- Use \`glasses.ocr\` for visible text and copy-heavy screenshots.
+- Use \`glasses.capture_url\` before reviewing a URL or localhost page.
+- Return observations, evidence, coordinates, OCR snippets when relevant, and uncertainty.`;
 }
 
 function bootstrapCommands(opts: InstallOptions): string[] {
@@ -548,8 +634,16 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const payload = buildInstallPayload(opts);
   if (opts.write && opts.target === "opencode") writeOpenCodeConfig(payload.opencodeConfigPath, payload.opencodeJson);
   else if (opts.write) writeManifest(payload.localManifest, payload.mcpJson);
+  if (opts.write) {
+    writeAgentSkill(payload.agentSkillPath, payload.agentSkill);
+    writeAgentInstructions(payload.agentInstructionsPath, payload.agentInstructions);
+  }
   if (opts.format === "json") console.log(JSON.stringify(payload, null, 2));
   else console.log(renderInstall(payload));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function restartInstructions(target: InstallOptions["target"]): string[] {

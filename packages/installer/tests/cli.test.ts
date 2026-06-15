@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildInstallPayload, helpText, parseArgs, renderInstall, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
+import { buildInstallPayload, helpText, parseArgs, renderInstall, writeAgentInstructions, writeAgentSkill, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
 
 describe("@vel/mcp installer", () => {
   it("parses npx-style generic MCP install options", () => {
@@ -52,6 +52,11 @@ describe("@vel/mcp installer", () => {
     expect(payload.codexForm.environmentVariables.VEL_ALLOWED_IMAGE_ROOTS).toContain("/tmp/example-project");
     expect(payload.mcpJson.mcpServers["vel-glasses"].command).toBe("pnpm");
     expect(payload.localManifest).toBe("/tmp/example-project/.mcp.json");
+    expect(payload.agentSkillPath).toBe("/tmp/example-project/.vel/skills/vel-glasses/SKILL.md");
+    expect(payload.agentSkill).toContain("Natural Language Routing");
+    expect(payload.agentSkill).toContain("glasses.review_visual");
+    expect(payload.agentInstructionsPath).toBe("/tmp/example-project/AGENTS.md");
+    expect(payload.agentInstructions).toContain("Read .vel/skills/vel-glasses/SKILL.md");
     expect(payload.modelRoles.find((role) => role.role === "grounding")?.limitations.join(" ")).toContain("not a general image narrator");
   });
 
@@ -144,6 +149,8 @@ describe("@vel/mcp installer", () => {
     expect(out).toContain("examples/glasses-demo/dashboard.png");
     expect(out).toContain("First video prompt:");
     expect(out).toContain("examples/glasses-demo/button-appears.mp4");
+    expect(out).toContain("Agent skill path:");
+    expect(out).toContain("Agent instructions path:");
     expect(out).toContain("Qwen3-VL");
   });
 
@@ -166,6 +173,51 @@ describe("@vel/mcp installer", () => {
       const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
       expect(manifest.mcpServers["vel-glasses"].env.VEL_GLASSES_PROVIDER).toBe("mock");
       expect(() => writeManifest(manifestPath, payload.mcpJson)).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes local agent guidance for natural language glasses routing", () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "vel-mcp-skill-test-"));
+    try {
+      const payload = buildInstallPayload(parseArgs([
+        "install",
+        "opencode",
+        "--project-dir",
+        dir,
+        "--kit-dir",
+        process.cwd(),
+        "--glasses-provider",
+        "mock",
+      ]));
+
+      writeAgentSkill(payload.agentSkillPath, payload.agentSkill);
+      const skill = readFileSync(payload.agentSkillPath, "utf-8");
+      expect(skill).toContain("# Vel Glasses Visual Skill");
+      expect(skill).toContain("The user does not need to mention MCP or tool names.");
+      expect(skill).toContain("glasses.capture_url");
+      expect(skill).toContain("bboxNorm1000");
+
+      writeAgentInstructions(payload.agentInstructionsPath, payload.agentInstructions);
+      const agents = readFileSync(payload.agentInstructionsPath, "utf-8");
+      expect(agents).toContain("VEL-GLASSES:BEGIN");
+      expect(agents).toContain("Read .vel/skills/vel-glasses/SKILL.md");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("updates only the managed AGENTS.md block", () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "vel-mcp-agents-test-"));
+    const agentsPath = resolve(dir, "AGENTS.md");
+    try {
+      writeAgentInstructions(agentsPath, "old instructions");
+      writeAgentInstructions(agentsPath, "new instructions");
+      const agents = readFileSync(agentsPath, "utf-8");
+      expect(agents).toContain("new instructions");
+      expect(agents).not.toContain("old instructions");
+      expect((agents.match(/VEL-GLASSES:BEGIN/g) ?? []).length).toBe(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

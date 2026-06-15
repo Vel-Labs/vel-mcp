@@ -6,11 +6,12 @@
       "command": ["pnpm", "--dir", "/Users/steven/Workspace/40_Code/projects/vel-mcp", "--filter", "@vel/glasses-mcp", "dev"],
       "cwd": "/Users/steven/Workspace/40_Code/projects/test-project",
       "enabled": true,
-      "timeout": 60000,
+      "timeout": 180000,
       "environment": {
         "VEL_GLASSES_PROVIDER": "glasses-grounding",
         "VEL_VISION_PYTHON": "/Users/steven/Workspace/40_Code/projects/vel-mcp/.vel/venvs/glasses-mlx/bin/python",
         "VEL_VISION_MODEL": "/Users/steven/30_AI-Lab/_cache/models/mlx-community/LocateAnything-3B-bf16",
+        "VEL_VISION_VLM_MODEL": "/Users/steven/30_AI-Lab/_cache/models/mlx-community/Qwen3-VL-4B-Instruct-8bit",
         "VEL_ALLOWED_IMAGE_ROOTS": "[\"/Users/steven/Workspace/40_Code/projects/test-project\",\"/Users/steven/Workspace/40_Code/projects/vel-mcp\",\"/Users/steven/vel/glasses/inputs\"]"
       }
     }

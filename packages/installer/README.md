@@ -43,6 +43,7 @@ pnpm dlx @vel/mcp install opencode --project-dir . --write
 - STDIO MCP launch fields for clients such as Codex.
 - An OpenCode-native `opencode.json` with `mcp.vel-glasses`, `cwd`, timeout, and environment.
 - A generic `mcpServers` JSON manifest for clients that discover project-local `.mcp.json`.
+- A project-local `.vel/skills/vel-glasses/SKILL.md` guidance file and managed `AGENTS.md` pointer so coding agents can translate natural user requests into the right Glasses tool calls.
 - Readiness checks for the kit checkout, project directory, Python worker, and local vision model path.
 - `VEL_ALLOWED_IMAGE_ROOTS` so the target project, VEL kit examples, and `~/vel/glasses/inputs` are readable by the glasses path policy.
 - Model-role guidance that explains which local model class is needed for grounding, open-ended image inspection, and video reasoning.
@@ -50,6 +51,8 @@ pnpm dlx @vel/mcp install opencode --project-dir . --write
 - First image and video prompts that use the demo assets in `examples/glasses-demo`.
 
 The wizard is dry-run-first. It only clones/builds the kit with `--bootstrap`, and it only writes `.mcp.json` or `opencode.json` with `--write`.
+
+When `--write` is used, the wizard also writes the local skill guidance file and inserts or updates a marker-bounded VEL section in `AGENTS.md`. That guidance is deliberately human-readable and machine-oriented: it teaches an agent to use `glasses.review_visual` for normal screenshot review, `glasses.locate` for targets and click coordinates, `glasses.ocr` for text-heavy images, and `glasses.capture_url` before reviewing a URL or localhost page. Users should be able to ask natural questions like "look at this screenshot and focus on the dialogue box" instead of naming MCP methods.
 
 OpenCode must be closed and reopened after changing MCP config; starting a new chat in the same process is not enough.
 
