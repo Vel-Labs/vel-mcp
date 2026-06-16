@@ -1,4 +1,4 @@
-import type { AskInput, CompareInput, DescribeInput, DetectAnomaliesInput, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, ReadDocumentInput, VideoScanInput } from "../schemas.js";
+import type { AskInput, CompareInput, DescribeInput, DetectAnomaliesInput, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, ReadDocumentInput } from "../schemas.js";
 import type { LocalizationResult, VisionProvider, VisionProviderResult } from "./types.js";
 import { filterByRegion, mergeLinesByYBands, layoutSort } from "../services/ocrUtils.js";
 
@@ -141,29 +141,6 @@ export class MockVisionProvider implements VisionProvider {
     return timed("mock", {
       summary: `Mock ${mode} comparison complete`,
       changedRegions: [{ label: "mock changed region", bboxNorm1000: [400, 400, 600, 600], confidence: 0.5 }]
-    });
-  }
-
-  async videoScan(input: VideoScanInput): Promise<VisionProviderResult<{ frames: unknown[]; events: unknown[] }>> {
-    const maxFrames = input.sampling?.maxFrames ?? 60;
-    const interval = input.sampling?.everySeconds ?? (input.sampling?.fps ? 1 / input.sampling.fps : 2);
-    const frames = [];
-    for (let i = 0; i < Math.min(maxFrames, 10); i++) {
-      frames.push({ frameIndex: i, timestampSec: i * interval, source: input.video.kind, artifactId: `mock-frame-${i}` });
-    }
-    return timed("mock", {
-      frames,
-      events: input.query
-        ? frames.map((f) => ({
-            timestampSec: f.timestampSec,
-            frameIndex: f.frameIndex,
-            frameArtifactId: f.artifactId,
-            label: input.query,
-            bboxNorm1000: [100, 200, 400, 300],
-            centerNorm1000: [250, 250],
-            confidence: 0.65
-          }))
-        : []
     });
   }
 

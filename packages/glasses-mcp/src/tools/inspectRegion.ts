@@ -66,6 +66,12 @@ export function inspectRegionTool(
             parentImageArtifactId: parentArtifactId,
           },
         },
+        parentImage: {
+          sha256: loaded.meta.sha256,
+          width: loaded.meta.width,
+          height: loaded.meta.height,
+          source: loaded.meta.source,
+        },
       }, {
         provider: inspectResult.provider,
         timingMs: inspectResult.timingMs,

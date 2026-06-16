@@ -1,9 +1,14 @@
+import { readFileSync, statSync } from "node:fs";
 import { envelope, toMcpJsonResult, type VelToolSpec } from "@vel/mcp-base";
 import { VideoScanInputSchema } from "../schemas.js";
 import type { ProviderRouter } from "../providers/providerRouter.js";
 import type { ImageLoader } from "../services/imageLoader.js";
 import { VideoSampler } from "../services/videoSampler.js";
+import { FrameGridCompositor } from "../services/frameGridCompositor.js";
 import type { ArtifactStore } from "@vel/core";
+
+const DEFAULT_MAX_LOCATE_FRAMES = 20;
+const DEFAULT_LOCATE_TIMEOUT_MS = 30_000;
 
 export function videoScanTool(
   router: ProviderRouter,
@@ -18,16 +23,27 @@ export function videoScanTool(
     description: "Sample a bounded video into timestamped frames and run structured visual analysis. Never processes unbounded video silently.",
     inputSchema: VideoScanInputSchema.shape,
     handler: async (input) => {
+      const started = Date.now();
+      const warnings: string[] = [];
+
+      // Stat-before-read: reject oversized videos before loading into memory
+      const maxBytes = input.sampling?.maxBytes ?? 250 * 1024 * 1024;
+      if (input.video.kind === "file_path") {
+        const fileBytes = statSync(input.video.value).size;
+        if (fileBytes > maxBytes) {
+          throw Object.assign(
+            new Error(`Video file exceeds maxBytes policy (${fileBytes} > ${maxBytes}).`),
+            { code: "VIDEO_TOO_LARGE" }
+          );
+        }
+      }
+
       const loaded = await imageLoader.load(input.video);
-      const warnings = [...loaded.warnings];
+      warnings.push(...loaded.warnings);
 
       // Video must be loaded from file_path for ffmpeg
       if (loaded.meta.source.kind !== "file_path") {
         throw new Error(`Video scanning currently only supports file_path inputs. Got: ${loaded.meta.source.kind}`);
-      }
-      const maxBytes = input.sampling?.maxBytes ?? 250 * 1024 * 1024;
-      if (loaded.meta.bytes > maxBytes) {
-        throw new Error(`Video file exceeds maxBytes policy (${loaded.meta.bytes} > ${maxBytes}).`);
       }
       if (input.sampling?.everySeconds && input.sampling?.fps) {
         throw new Error("Video sampling accepts either everySeconds or fps, not both.");
@@ -45,6 +61,10 @@ export function videoScanTool(
       });
       warnings.push(...sampleWarnings);
 
+      if (frames.length === 0) {
+        warnings.push("No frames extracted. Video may be too short, unsupported codec, or ffmpeg produced empty output.");
+      }
+
       const events: Array<{
         timestampSec: number;
         frameIndex: number;
@@ -57,19 +77,36 @@ export function videoScanTool(
         evidence?: { text?: string; rawModelOutput?: string; cropArtifactId?: string; frameArtifactId: string };
       }> = [];
 
-      // If query provided, run locate on each frame
+      let locateProvider = { name: "glasses-video", version: "0.1.0" };
+
+      // If query provided, run locate on bounded subset of frames
       if (input.query && frames.length > 0) {
         const provider = router.getForTool("video_scan", input.provider);
-        for (const frame of frames) {
+        locateProvider = { name: provider.id, version: (provider as any).displayName ?? provider.id };
+
+        const maxLocateFrames = DEFAULT_MAX_LOCATE_FRAMES;
+        const locateTimeout = DEFAULT_LOCATE_TIMEOUT_MS;
+        const scanFrames = frames.slice(0, maxLocateFrames);
+
+        if (frames.length > maxLocateFrames) {
+          warnings.push(`Locate capped at ${maxLocateFrames} of ${frames.length} sampled frames.`);
+        }
+
+        for (let i = 0; i < scanFrames.length; i++) {
+          const frame = scanFrames[i];
           try {
-            const locateResult = await provider.locate({
-              image: { kind: "file_path", value: artifactStore.dataPath(frame.artifactId), mimeType: "image/png" },
-              query: input.query,
-              outputType: "box",
-              targetType: "any",
-              maxResults: 5,
-              includeRawModelOutput: false,
-            });
+            const locateResult = await withTimeout(
+              provider.locate({
+                image: { kind: "file_path", value: artifactStore.dataPath(frame.artifactId), mimeType: "image/png" },
+                query: input.query,
+                outputType: "box",
+                targetType: "any",
+                maxResults: 5,
+                includeRawModelOutput: false,
+              }),
+              locateTimeout,
+              `Frame ${frame.frameIndex} locate timed out after ${locateTimeout}ms`
+            );
             for (const match of locateResult.data.matches) {
               events.push({
                 timestampSec: frame.timestampSec,
@@ -90,11 +127,44 @@ export function videoScanTool(
             warnings.push(`Frame ${frame.frameIndex} locate failed: ${(err as Error).message}`);
           }
         }
+
+        if (scanFrames.length > 0) {
+          warnings.push(`Scanned ${scanFrames.length} frame(s) for query "${input.query}". ${events.length} event(s) found.`);
+        }
       }
+
+      const timingMs = Date.now() - started;
+
+      // Temporal reasoning: composite frames into a grid and ask VLM for cross-frame analysis
+      let temporalSummary: {
+        description?: string;
+        artifactId?: string;
+        warnings: string[];
+      } = { warnings: [] };
+
+      if (frames.length >= 2) {
+        try {
+          const vlmProvider = router.getForTool("ask", undefined);
+          if (vlmProvider.ask) {
+            temporalSummary = await buildTemporalSummary(vlmProvider, frames, artifactStore, videoInfo);
+          }
+        } catch (err) {
+          temporalSummary.warnings.push(
+            `Temporal reasoning unavailable: ${(err as Error).message}`
+          );
+        }
+      }
+      warnings.push(...temporalSummary.warnings);
 
       return toMcpJsonResult(envelope({
         frames,
         events,
+        temporalSummary: temporalSummary.description
+          ? {
+              description: temporalSummary.description,
+              gridArtifactId: temporalSummary.artifactId,
+            }
+          : undefined,
         videoInfo: {
           durationSec: videoInfo.durationSec,
           width: videoInfo.width,
@@ -112,10 +182,86 @@ export function videoScanTool(
           truncated: videoInfo.durationSec > (input.sampling?.maxDurationSec ?? 600),
         },
       }, {
-        provider: { name: "glasses-video", version: "0.1.0" },
-        timingMs: 0,
+        provider: locateProvider,
+        timingMs,
         warnings,
       }));
     },
   };
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(new Error(message), { code: "LOCATE_TIMEOUT" })), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function buildTemporalSummary(
+  vlmProvider: any,
+  frames: Array<{ artifactId: string; timestampSec: number }>,
+  artifactStore: ArtifactStore,
+  videoInfo: { width: number; height: number; durationSec: number; fps: number }
+): Promise<{ description?: string; artifactId?: string; warnings: string[] }> {
+  const warnings: string[] = [];
+  const gridFrames = frames.slice(0, FrameGridCompositor.MAX_GRID_FRAMES);
+
+  if (gridFrames.length < 2) {
+    return { warnings: ["Temporal reasoning requires at least 2 frames."] };
+  }
+
+  try {
+    // Read frame bytes from artifact store
+    const frameData = gridFrames.map((f) => ({
+      imageBytes: readFileSync(artifactStore.dataPath(f.artifactId)),
+      timestampSec: f.timestampSec,
+    }));
+
+    // Composite into grid
+    const gridBytes = await FrameGridCompositor.compose(frameData, videoInfo.width, videoInfo.height);
+
+    // Store grid as artifact
+    const gridMeta = await artifactStore.putBytes(gridBytes, {
+      mimeType: "image/png",
+      originalName: "video-frame-grid.png",
+      origin: "generated",
+      extra: {
+        sourceFrames: frames.length,
+        gridFrames: gridFrames.length,
+        videoDuration: videoInfo.durationSec,
+      },
+    });
+
+    // Build temporal prompt
+    const timestamps = gridFrames.map((f) => `t=${f.timestampSec.toFixed(1)}s`).join(", ");
+    const question = [
+      `This is a grid of ${gridFrames.length} frames sampled from a ${videoInfo.durationSec.toFixed(1)}s video.`,
+      `Frames are labeled left-to-right, top-to-bottom at timestamps: ${timestamps}.`,
+      `Describe the sequence of events: what appears, disappears, moves, or changes across the frames.`,
+      `Keep the answer concise — 3-6 sentences. Focus on temporal changes, not static scene description.`,
+    ].join(" ");
+
+    // Send to VLM via ask (free-form visual Q&A)
+    const result = await vlmProvider.ask({
+      image: { kind: "artifact_id", value: gridMeta.id, mimeType: "image/png" },
+      question,
+    });
+
+    const description = result.data?.answer ?? "";
+    if (result.warnings?.length) warnings.push(...result.warnings);
+
+    return { description, artifactId: gridMeta.id, warnings };
+  } catch (err) {
+    warnings.push(`Temporal reasoning failed: ${(err as Error).message}`);
+    return { warnings };
+  }
 }

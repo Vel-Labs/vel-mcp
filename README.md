@@ -11,6 +11,33 @@ Workers = lazy-loaded local or remote specialist models
 Privacy = gateway/hook first, MCP second
 ```
 
+## Quick Start
+
+```bash
+npx @vel/mcp install commandcode --project-dir /path/to/your/project --bootstrap --write
+```
+
+Replace `commandcode` with your agent:
+
+| Agent | Command |
+|-------|---------|
+| CommandCode | `npx @vel/mcp install commandcode --project-dir /path/to/project --bootstrap --write` |
+| OpenCode | `npx @vel/mcp install opencode --project-dir /path/to/project --bootstrap --write` |
+| Codex | `npx @vel/mcp install codex --project-dir /path/to/project` |
+| Generic MCP | `npx @vel/mcp install mcp --project-dir /path/to/project --bootstrap --write` |
+
+Then ask your agent naturally: *"Look at this screenshot and describe what stands out."* The agent guidance handles tool routing — you never need to type MCP tool names.
+
+**After setup**: set your model env vars in the agent's MCP config. At minimum:
+
+```bash
+VEL_VISION_MODEL=/path/to/LocateAnything-3B-bf16
+VEL_VISION_VLM_MODEL=/path/to/Qwen3-VL-4B-Instruct-5bit
+VEL_VISION_PYTHON=/path/to/.vel/venvs/glasses-mlx/bin/python
+```
+
+See the [Installer](#installer) section below for details, and copy `vel.config.quick.yaml` → `vel.config.yaml` for the minimal config.
+
 ## Implementation priority
 
 1. `@vel/core` — config, artifacts, audit logs, provider registry, lazy worker supervisor.
@@ -66,6 +93,19 @@ mlx-community/Qwen3-VL-4B-Instruct-8bit
 
 Plan for about 11.5 GB of model files on disk and roughly 14-20 GB of free unified memory when both lanes are active. A 16 GB machine should be treated as constrained mode.
 
+For a minimal two-model setup, copy `vel.config.quick.yaml` to `vel.config.yaml` and set the three env vars listed at the bottom. The full reference with all supported models is at `vel.config.example.yaml`.
+
+## Platform Support
+
+| Platform | Status |
+|----------|--------|
+| macOS (Apple Silicon) | Primary, fully tested |
+| Linux (WSL2 on Windows) | Expected to work, not yet fully tested |
+| Linux (native) | Expected to work with CUDA providers, not yet tested |
+| Windows (native) | Not yet supported (path separators, spawn, python detection, ffmpeg path resolution) |
+
+Requirements across all platforms: Node.js 20+, pnpm 10+, Python 3.10–3.12, ffmpeg.
+
 ## Install From This Repo
 
 Clone and build the kit:
@@ -120,35 +160,16 @@ node packages/glasses-mcp/dist/cli.js review examples/glasses-demo/dashboard.png
 
 ## Configure An Agent Project
 
-Run the setup command from the cloned `vel-mcp` repo. The installer writes MCP config for the target project, model env vars, `AGENTS.md`, and `.vel/skills/vel-glasses/SKILL.md` guidance so users can ask normal visual questions.
+Run the setup command from the cloned `vel-mcp` repo:
 
-CommandCode:
+| Agent | Command |
+|-------|---------|
+| CommandCode | `pnpm setup:commandcode -- --project-dir /path/to/project` |
+| OpenCode | `pnpm setup:opencode -- --project-dir /path/to/project` |
+| Codex | `pnpm setup:codex -- --project-dir /path/to/project` |
+| Generic MCP | `pnpm setup:mcp -- --project-dir /path/to/project --write` |
 
-```bash
-pnpm setup:commandcode -- --project-dir /path/to/project
-cd /path/to/project
-cmd mcp list
-```
-
-OpenCode:
-
-```bash
-pnpm setup:opencode -- --project-dir /path/to/project
-```
-
-After OpenCode setup, fully close and reopen the OpenCode process. Starting a new chat is not enough.
-
-Codex:
-
-```bash
-pnpm setup:codex -- --project-dir /path/to/project
-```
-
-Generic project `.mcp.json`:
-
-```bash
-pnpm setup:mcp -- --project-dir /path/to/project --write
-```
+After setup with OpenCode, fully close and reopen the process. Starting a new chat is not enough. For CommandCode, `cd` into the project and run `cmd mcp list` — `vel-glasses` should appear.
 
 What gets written:
 
@@ -157,8 +178,6 @@ What gets written:
 - Generic MCP: `/path/to/project/.mcp.json`.
 - Agent guidance: `/path/to/project/AGENTS.md`.
 - Detailed visual-routing skill: `/path/to/project/.vel/skills/vel-glasses/SKILL.md`.
-
-For saved images, put files under the target project or `~/vel/glasses/inputs`. Those roots are allowed by default. Attachment handling varies by agent harness; if an attached image is not accessible, save it into the project and ask about that path.
 
 ## First Prompts
 
@@ -176,7 +195,61 @@ Look at images/screenshot.png and focus on the checkout button. Where is it?
 Look at http://localhost:3000 and review the pricing section.
 ```
 
-The agent guidance should route these to `glasses.review_visual`, `glasses.locate`, `glasses.ocr`, or `glasses.capture_url` as needed. Users should not need to type MCP method names.
+The agent guidance should route these to `glasses.review_visual`, `glasses.locate`, `glasses.ocr`, `glasses.capture_url` as needed. Users should not need to type MCP method names.
+
+### Agent self-setup block
+
+Copy-paste this into your coding agent to have it configure `@vel/mcp` in the current project:
+
+```
+Run this one-command install and then cd into the project and verify the MCP appears:
+
+npx @vel/mcp install commandcode --project-dir . --bootstrap --write
+
+After it completes, verify the MCP server is connected by listing available tools.
+If the MCP server is present, reply "Vel Glasses is ready. Attach an image or point me to a screenshot and I'll tell you what I see."
+```
+
+Replace `commandcode` with `opencode`, `codex`, or `mcp` for other agents.
+
+## Video Analysis
+
+`glasses.video_scan` processes video files through the same visual analysis pipeline as image tools:
+
+1. **Metadata probe** — duration, resolution, frame rate, format via ffprobe
+2. **Frame sampling** — PNG frames extracted at configurable intervals via ffmpeg's `fps` filter
+3. **Per-frame analysis** — each frame can be analyzed with `glasses.locate` (bounding boxes, confidence, coordinates) when a query is provided
+4. **Temporal reasoning** — when 2+ frames are sampled, frames are composited into a grid and sent to the VLM provider for cross-frame event analysis ("what changed between frames")
+
+**Current limitations**:
+
+- Bounded only: max 60 frames, 600s duration, 250MB file size. Unsuitable for long-form video.
+- The temporal reasoning pass requires a VLM provider (`VEL_VISION_VLM_MODEL`). Without one, you get frame manifests and per-frame analysis only.
+- Scene-change detection is not yet implemented. Sampling is interval-based.
+- Video attachments may not resolve from agent temp directories — save files to your project or `~/vel/glasses/inputs`.
+- Shorter videos produce better results. Under 30 seconds with a single focal subject works best.
+
+**Required tools**: `ffmpeg` and `ffprobe` must be on PATH (`brew install ffmpeg` on macOS, `apt-get install ffmpeg` on Linux).
+
+## URL Screenshot Capture
+
+`glasses.capture_url` captures screenshots of web pages via Playwright. This lets coding agents inspect localhost apps, staging environments, and public pages without manual screenshots.
+
+```bash
+# Interactive CLI
+vel-glasses capture-url http://localhost:3000
+
+# Via MCP tool — capture then inspect
+glasses.capture_url → glasses.review_visual
+```
+
+**Prerequisites**: Install Chromium after installing the workspace:
+
+```bash
+pnpm --filter @vel/glasses-mcp exec playwright install chromium
+```
+
+If Chromium isn't installed, `capture_url` returns `code: "PLAYWRIGHT_BROWSER_UNAVAILABLE"` with install instructions.
 
 ## Verify
 
@@ -194,15 +267,22 @@ pnpm eval:locate-anything-smoke
 pnpm eval:locate-anything-quality
 ```
 
-## Future Published Installer
+## Installer
 
-Once `@vel/mcp` is published, the intended no-clone bootstrap path is:
+The `@vel/mcp` package provides a one-command bootstrap that clones, builds, and configures `vel-mcp` for any supported coding agent:
 
 ```bash
 npx @vel/mcp install commandcode --project-dir . --bootstrap --write
 ```
 
-Use `install commandcode` for CommandCode, `install opencode` for OpenCode, `install codex` to print Codex STDIO form fields, or `install mcp --format json` to emit a machine-readable setup payload for agent harnesses.
+Supported targets:
+
+- `commandcode` — writes `.mcp.json` (CommandCode project config)
+- `opencode` — writes `opencode.json` (OpenCode config)
+- `codex` — prints Codex STDIO form fields
+- `mcp` — writes generic `.mcp.json` MCP config
+
+With `--bootstrap`, the installer clones the repo, runs `pnpm install` and `pnpm build`. Without it, pass `--kit-dir` pointing to an existing clone. Use `--write` to actually create config files; without it, the command is dry-run by default.
 
 ## Core design rule
 
@@ -211,6 +291,8 @@ If the model should decide when to call it → MCP tool.
 If it must happen before the model sees data → gateway/proxy/hook.
 If it needs OS/UI/device access → local helper plus optional MCP.
 If it stores sensitive state → separate process and separate permission boundary.
+If it fails → structured error code + human-readable message + actionable next step.
+No silent failures. Warnings are acceptable; swallowed errors, empty arrays, and undefined summaries are not.
 ```
 
 ## Read next

@@ -1,6 +1,6 @@
 import { createVelServer, registerVelTool } from "@vel/mcp-base";
 import { AuditLog, WorkerSupervisor, ArtifactStore, PathPolicy } from "@vel/core";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { delimiter, resolve } from "node:path";
 import { ProviderRouter } from "./providers/providerRouter.js";
 import { MockVisionProvider } from "./providers/mockVisionProvider.js";
@@ -236,5 +236,10 @@ function resolveAllowedImageRoots(explicit?: string[], config?: Record<string, u
     }
   }
 
-  return [process.cwd(), resolve(homedir(), "vel", "glasses", "inputs")];
+  return [
+    process.cwd(),
+    resolve(homedir(), "vel", "glasses", "inputs"),
+    tmpdir(),
+    "/tmp",
+  ];
 }

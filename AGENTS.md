@@ -25,6 +25,7 @@ Do **not** implement `privacy-gateway` before the vision layer is functional, be
 8. Use normalized coordinates `[0, 1000]` as the internal canonical coordinate space; add pixel coordinates only when image dimensions are known.
 9. Add provider metadata and confidence/uncertainty to every non-trivial result.
 10. Every long-running model call must have timeout, cancellation, and explicit error objects.
+11. No silent failures. Every error path must produce a structured result with a machine-readable error code, a human-readable message, and actionable next steps. Crashes, timeouts, missing dependencies, empty results, degraded provider behavior — none of these should be swallowed. Warnings in the result envelope are acceptable; silent empty arrays and undefined summaries are not.
 
 ## Code style
 

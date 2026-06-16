@@ -1,5 +1,5 @@
 import type { ProviderHealth, NamedProvider } from "@vel/core";
-import type { CompareInput, ImageRef, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, VideoScanInput, DescribeInput, AskInput, ReadDocumentInput, DetectAnomaliesInput } from "../schemas.js";
+import type { CompareInput, ImageRef, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, DescribeInput, AskInput, ReadDocumentInput, DetectAnomaliesInput } from "../schemas.js";
 import type { ModelDiscovery } from "../services/modelDiscovery.js";
 
 export { ModelDiscovery };
@@ -46,7 +46,6 @@ export interface VisionProvider extends NamedProvider {
   ocr(input: OcrInput): Promise<VisionProviderResult<{ text: string; spans: OcrSpan[] }>>;
   inspectRegion(input: InspectRegionInput): Promise<VisionProviderResult<{ observations: string[]; region: LocalizationResult }>>;
   compare(input: CompareInput): Promise<VisionProviderResult<{ summary: string; changedRegions: LocalizationResult[] }>>;
-  videoScan(input: VideoScanInput): Promise<VisionProviderResult<{ frames: unknown[]; events: unknown[] }>>;
   describe?(input: DescribeInput): Promise<VisionProviderResult<{ description: string; style?: string }>>;
   ask?(input: AskInput): Promise<VisionProviderResult<{ answer: string; confidence?: number }>>;
   readDocument?(input: ReadDocumentInput): Promise<VisionProviderResult<{ pages: Array<{ pageNumber: number; text: string; spans?: OcrSpan[] }>; metadata: { totalPages: number; mode: string } }>>;

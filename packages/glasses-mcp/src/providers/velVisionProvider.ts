@@ -1,5 +1,5 @@
 import { WorkerSupervisor, type JsonlWorkerClient, type JsonlRequest } from "@vel/core";
-import type { AskInput, CompareInput, DescribeInput, DetectAnomaliesInput, ImageRef, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, ReadDocumentInput, VideoScanInput } from "../schemas.js";
+import type { AskInput, CompareInput, DescribeInput, DetectAnomaliesInput, ImageRef, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, ReadDocumentInput } from "../schemas.js";
 import { parseLocateAnythingAnswer } from "../parsers/locateAnything.js";
 import type { VisionProvider, VisionProviderResult, OcrSpan } from "./types.js";
 import { filterByRegion, mergeLinesByYBands, layoutSort } from "../services/ocrUtils.js";
@@ -40,6 +40,15 @@ export class VelVisionProvider implements VisionProvider {
     const warnings: string[] = [licenseWarning()];
     const modelId = this.activeModel();
 
+    const python = this.discovery.python;
+    if (python && !python.ok) {
+      warnings.push(python.warning ?? "Python not available. Install Python 3.10+ and set VEL_VISION_PYTHON.");
+      return { ok: false, error: "Python is not available for the vision worker.", warnings };
+    }
+    if (python?.warning) {
+      warnings.push(python.warning);
+    }
+
     const mlxBf16 = this.discovery.models.find((m) => m.id === modelId);
     if (mlxBf16) {
       return { ok: mlxBf16.status === "available", error: !mlxBf16.runtimeReady ? `Model ${modelId} is not runtime-ready. Run glasses.setup for install guidance.` : undefined, warnings };
@@ -53,12 +62,12 @@ export class VelVisionProvider implements VisionProvider {
     return { ok: true, warnings, details: { model: modelId } };
   }
 
-  async setup(): Promise<VisionProviderResult<{ models: any[] }>> {
+  async setup(): Promise<VisionProviderResult<{ models: any[]; python?: any }>> {
     return {
       provider: providerMeta(this.id),
       timingMs: 0,
       warnings: [licenseWarning()],
-      data: { models: this.discovery.models },
+      data: { models: this.discovery.models, python: this.discovery.python },
     };
   }
 
@@ -133,10 +142,6 @@ export class VelVisionProvider implements VisionProvider {
 
   async compare(_input: CompareInput): Promise<VisionProviderResult<{ summary: string; changedRegions: [] }>> {
     return { provider: providerMeta(this.id), timingMs: 0, warnings: [licenseWarning(), "Compare mode is not implemented yet."], data: { summary: "not implemented", changedRegions: [] } };
-  }
-
-  async videoScan(_input: VideoScanInput): Promise<VisionProviderResult<{ frames: unknown[]; events: unknown[] }>> {
-    return { provider: providerMeta(this.id), timingMs: 0, warnings: [licenseWarning(), "Video scan requires frame sampling implementation."], data: { frames: [], events: [] } };
   }
 
   async describe(input: DescribeInput): Promise<VisionProviderResult<{ description: string; style?: string }>> {

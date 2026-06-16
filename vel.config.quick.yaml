@@ -1,0 +1,53 @@
+# VEL Glasses — quick-start config
+# Copy to vel.config.yaml or load directly via --config
+
+vel:
+  home: "~/.vel"
+  worker:
+    maxRestarts: 3
+    restartWindowSec: 60
+    startupTimeoutSec: 30
+
+modules:
+  glasses:
+    enabled: true
+    defaultProvider: "mock"
+    allowHttpImageLoading: false
+    maxImageDimension: 8192
+
+    models:
+      # Grounding: spatial localization (boxes, points, GUI targets)
+      - id: "mlx-community/LocateAnything-3B-bf16"
+        role: "grounding"
+        kind: "mlx-vlm"
+        enabled: true
+
+      # General VLM: image description, visual QA, reasoning
+      - id: "mlx-community/Qwen3-VL-4B-Instruct-5bit"
+        role: "general_vlm"
+        kind: "mlx-vlm"
+        enabled: true
+
+    roles:
+      grounding:
+        preferred: "mlx-community/LocateAnything-3B-bf16"
+      general_vlm:
+        preferred: "mlx-community/Qwen3-VL-4B-Instruct-5bit"
+
+    toolToRole:
+      inspect_image: "general_vlm"
+      describe: "general_vlm"
+      ask: "general_vlm"
+      locate: "grounding"
+      ocr: "grounding"
+      inspect_region: "general_vlm"
+      compare: "general_vlm"
+      video_scan: "general_vlm"
+
+# Then set env vars so the provider finds your models:
+#
+#   export VEL_VISION_MODEL=/path/to/mlx-community/LocateAnything-3B-bf16
+#   export VEL_VISION_VLM_MODEL=/path/to/mlx-community/Qwen3-VL-4B-Instruct-5bit
+#   export VEL_VISION_PYTHON=/path/to/.vel/venvs/glasses-mlx/bin/python
+#
+# Full reference with all supported models: vel.config.example.yaml

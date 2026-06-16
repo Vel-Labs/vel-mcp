@@ -47,6 +47,10 @@ export class VideoSampler {
       ffprobe.stdout.on("data", (data) => { stdout += data; });
       ffprobe.stderr.on("data", (data) => { stderr += data; });
 
+      ffprobe.on("error", (err) => {
+        reject(checkFfmpegError(err, "ffprobe"));
+      });
+
       ffprobe.on("close", (code) => {
         if (code !== 0) {
           reject(new Error(`ffprobe failed: ${stderr}`));
@@ -161,6 +165,10 @@ export class VideoSampler {
       let stderr = "";
       ffmpeg.stderr.on("data", (data) => { stderr += data; });
 
+      ffmpeg.on("error", (err) => {
+        reject(checkFfmpegError(err, "ffmpeg"));
+      });
+
       ffmpeg.on("close", (code) => {
         // ffmpeg may exit 0 even with partial output; check if any frames were produced
         if (code !== 0) {
@@ -184,4 +192,17 @@ function parseFps(rate: unknown): number {
   const denominator = denominatorRaw === undefined ? 1 : Number(denominatorRaw);
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return 0;
   return numerator / denominator;
+}
+
+function checkFfmpegError(err: NodeJS.ErrnoException, tool: string): Error {
+  if (err.code === "ENOENT") {
+    return Object.assign(
+      new Error(`${tool} is not installed. Install ffmpeg to enable video processing: brew install ffmpeg (macOS) or apt-get install ffmpeg (Linux).`),
+      { code: "FFMPEG_UNAVAILABLE" }
+    );
+  }
+  return Object.assign(
+    new Error(`${tool} failed to start: ${err.message}`),
+    { code: "FFMPEG_SPAWN_ERROR", cause: err }
+  );
 }

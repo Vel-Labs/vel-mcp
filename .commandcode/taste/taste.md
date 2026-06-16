@@ -11,6 +11,7 @@
 
 # Security
 - Warn on large file sizes rather than hard-blocking; surface awareness to the user that higher volume content increases processing time. Confidence: 0.60
+- Allow agent attachment temp directories (e.g., /tmp, os.tmpdir()) in PathPolicy allowed roots, or add a helper that copies attachments from temp paths into allowed roots before loading. Agent-provided file paths typically land outside process.cwd() and ~/vel/glasses/inputs, causing path policy rejections. Confidence: 0.75
 
 # Providers
 - Provider config supports priority ordering (1, 2, 3) set by the user to determine fallback sequence. Confidence: 0.65
@@ -22,11 +23,7 @@
 - Run smoke tests in CI after pnpm verify to catch MCP protocol-level breakage that unit tests miss. Confidence: 0.70
 
 # Workflow
-- Address scaling concerns (audit log rotation, artifact eviction, repetitive patterns) proactively before advancing phases rather than deferring them. Confidence: 0.65
-- Close fake/mock integration gaps with real subprocess or real-model tests rather than documenting them as known limitations; validate actual protocol contracts end-to-end. Confidence: 0.65
-- Each MCP sense (glasses, memory, etc.) should have its own roadmap file (e.g., roadmap_glasses.md, roadmap_memory.md) in addition to the per-package ROADMAP.md and the global ROADMAP.md. Confidence: 0.80
-- When phase tasks are completed, update both the global ROADMAP.md checkboxes AND add detailed completion summaries with component breakdowns and test counts, matching the Phase 0/1 documentation style. Confidence: 0.70
-
+See [workflow/taste.md](workflow/taste.md)
 # CLI
 - CLI tools for each sense should be detailed and driven by what that specific sense offers, not generic. Each MCP lane gets its own CLI surface tailored to its capabilities. Confidence: 0.75
 
@@ -42,6 +39,25 @@ See [vision/taste.md](vision/taste.md)
 
 # Community
 - Maintain a community-tested model compatibility list via GitHub issues rather than bundling or prescribing specific models; users bring their own models and report what works/doesn't work. Confidence: 0.70
+
+# MCP-Integration
+- Package a skills/agents file with the MCP that provides NLP-to-tool conversion guidance so coding agents know how to invoke glasses tools from natural-language user requests without users needing to know exact tool names and parameters. Confidence: 0.75
+- Generate config snippets for multiple coding agents (OpenCode, Codex, CommandCode) as part of the setup wizard, not just a single agent format. Each agent has different config schemas and the installer should detect or ask which agent to configure. Confidence: 0.75
+
+# Setup
+- The install/setup experience should be a global CLI wizard that walks users through: detecting local vision models, suggesting models with HuggingFace links if none found, configuring the MCP connection for the user's coding agent, and providing clear next steps. Aim for an npx-equivalent one-command bootstrap. Confidence: 0.75
+- Setup scripts must handle existing config files gracefully — if a config file already exists, merge or warn with a clear message rather than crashing with EEXIST. Confidence: 0.70
+
+# Package-Management
+- Placeholder/stub packages without real implementation should be gitignored from the repo until they contain working code and tests. Scaffolded packages create noise for new users and agents exploring the codebase. Confidence: 0.70
+
+# Design-Philosophy
+- Prioritize low cognitive lift and low context-waste tooling — avoid telemetry, avoid unnecessary complexity, keep the tool focused and lightweight so it doesn't introduce drift or overhead into the user's workflow. Confidence: 0.70
+- No silent failures: every error path must produce a structured warning with actionable detail surfaced in the result envelope. Graceful degradation means the operation continues but the user always knows what didn't work and why. Detailed understanding of failure is imperative. Confidence: 0.85
+
+# Documentation
+- README should include a quick start section with explicit per-agent instructions (commandcode, opencode, codex, mcp) rather than consolidating all targets into a single prose paragraph. Each agent gets its own subheading with the exact npx invocation. Confidence: 0.65
+- Include a self-contained copy-paste block per agent that bundles the install command with enough context (what it does, what to expect, next steps) so an agent reading the README can execute without hunting for surrounding prose. Confidence: 0.70
 
 # Naming
 - Keep worker names specific to their role in the glasses pipeline (e.g., vel-glasses for the MCP, a vision worker under it), not generic like vel-worker; the config file supplies which models to use, so the worker doesn't need the model in its name. Confidence: 0.65

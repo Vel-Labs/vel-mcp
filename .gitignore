@@ -16,3 +16,9 @@ artifacts/
 work_dirs/
 models/
 eagle/
+
+# Stub packages — gitignored until real implementation ships (sprint_roadmap.md item 4)
+packages/brain-mcp/
+packages/control-mcp/
+packages/speech-mcp/
+packages/privacy-gateway/

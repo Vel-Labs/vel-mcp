@@ -19,7 +19,6 @@ export function listProvidersTool(router: ProviderRouter): VelToolSpec<typeof Li
             "ocr",
             "inspectRegion",
             "compare",
-            "videoScan",
             entry.provider.describe ? "describe" : null,
             entry.provider.ask ? "ask" : null,
             entry.provider.readDocument ? "readDocument" : null,

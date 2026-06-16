@@ -1,6 +1,7 @@
 import { accessSync, constants } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { homedir } from "node:os";
+import { spawnSync } from "node:child_process";
 
 export interface ModelConfig {
   id: string;
@@ -34,6 +35,12 @@ export interface ModelDiscovery {
 export interface DiscoveryResult {
   models: ModelDiscovery[];
   scannedAt: string;
+  python?: {
+    path: string;
+    version: string | null;
+    ok: boolean;
+    warning?: string;
+  };
 }
 
 function fileExists(p: string): boolean {
@@ -289,11 +296,80 @@ export function discoverModels(configModels?: ModelConfig[]): DiscoveryResult {
     .filter((m) => m.enabled !== false)
     .map(buildDiscovery);
 
-  return { models, scannedAt: new Date().toISOString() };
+  return { models, scannedAt: new Date().toISOString(), python: detectPython() };
 }
 
 export function getTaskToModel(config?: Record<string, unknown>): Record<string, string> {
   const taskMap = config?.taskToModel as Record<string, string> | undefined;
   if (!taskMap) return {};
   return taskMap;
+}
+
+function detectPython(): DiscoveryResult["python"] {
+  const pythonPath = process.env.VEL_VISION_PYTHON ?? "python3";
+  try {
+    const result = spawnSync(pythonPath, ["--version"], {
+      encoding: "utf-8",
+      timeout: 5_000,
+    });
+
+    if (result.status !== 0 || result.error) {
+      const stderr = (result.stderr ?? "").trim();
+      return {
+        path: pythonPath,
+        version: null,
+        ok: false,
+        warning: stderr
+          ? `Python not found at "${pythonPath}": ${stderr}`
+          : `Python not found at "${pythonPath}". Install Python 3.10+ and set VEL_VISION_PYTHON.`,
+      };
+    }
+
+    const output = (result.stdout || result.stderr || "").trim();
+    const versionMatch = output.match(/Python (\d+)\.(\d+)/);
+    const version = versionMatch ? `${versionMatch[1]}.${versionMatch[2]}` : output;
+
+    if (!versionMatch) {
+      return { path: pythonPath, version: output, ok: true };
+    }
+
+    const major = parseInt(versionMatch[1], 10);
+    const minor = parseInt(versionMatch[2], 10);
+
+    if (major !== 3) {
+      return {
+        path: pythonPath,
+        version,
+        ok: true,
+        warning: `Python ${version} is Python ${major}. MLX-VLM requires Python 3.10 or later.`,
+      };
+    }
+
+    if (minor < 10) {
+      return {
+        path: pythonPath,
+        version,
+        ok: true,
+        warning: `Python ${version} is below the recommended 3.10+. MLX-VLM requires Python 3.10 or later.`,
+      };
+    }
+
+    if (minor > 12) {
+      return {
+        path: pythonPath,
+        version,
+        ok: true,
+        warning: `Python ${version} is above the tested range (3.10-3.12). MLX-VLM compatibility is not yet verified.`,
+      };
+    }
+
+    return { path: pythonPath, version, ok: true };
+  } catch (err) {
+    return {
+      path: pythonPath,
+      version: null,
+      ok: false,
+      warning: `Python detection failed: ${(err as Error).message}`,
+    };
+  }
 }
