@@ -2,7 +2,7 @@
 
 This repo is intended to be implemented by coding agents. Treat this document as the working contract.
 
-**If you are an agent setting up or using Vel Glasses, read `SKILL.md` first** — it contains install commands and natural-language tool routing guidance.
+**If you are an agent setting up or using Vel Glasses, read `.skills/SKILL.md` first** — it indexes domain-specific skill files (setup, vision, video) for token-efficient per-request loading.
 
 ## Current priority
 

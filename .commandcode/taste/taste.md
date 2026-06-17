@@ -26,6 +26,10 @@
 See [workflow/taste.md](workflow/taste.md)
 # CLI
 - CLI tools for each sense should be detailed and driven by what that specific sense offers, not generic. Each MCP lane gets its own CLI surface tailored to its capabilities. Confidence: 0.75
+- Installer/setup output should be concise — a compact success banner with the essentials (MCP name, config path, restart note) rather than a wall of text dumping every config snippet, model list, and readiness check into the terminal. Confidence: 0.80
+- When writing CLI output for npx-distributed tools, use console.log (stdout) instead of console.error (stderr) for user-visible messages — npx swallows stderr output when the child process exits with code 0, making install progress invisible to users. Confidence: 0.85
+- Always rebuild dist (pnpm build) before npm publish — dist/ is gitignored but included in the npm tarball, so stale dist produces a published package that doesn't match the committed source. Build must run immediately before publish, not just before commit. Confidence: 0.85
+- The bootstrap/install process must handle existing kit directories gracefully: git pull + pnpm install + pnpm build (not skip) to prevent stale/partially-built clones from failing. Running --bootstrap on an existing kit should result in a fully updated and working install, not a silent skip. Confidence: 0.80
 
 # Vision
 See [vision/taste.md](vision/taste.md)
@@ -42,6 +46,7 @@ See [vision/taste.md](vision/taste.md)
 
 # MCP-Integration
 - Package a skills/agents file with the MCP that provides NLP-to-tool conversion guidance so coding agents know how to invoke glasses tools from natural-language user requests without users needing to know exact tool names and parameters. Confidence: 0.75
+- Use a skills directory with separate files per domain (images, video, wiki, etc.) rather than a single monolithic SKILL.md. Each domain gets its own skill file for cleaner organization and token efficiency. Confidence: 0.70
 - Generate config snippets for multiple coding agents (OpenCode, Codex, CommandCode) as part of the setup wizard, not just a single agent format. Each agent has different config schemas and the installer should detect or ask which agent to configure. Confidence: 0.75
 
 # Setup
@@ -50,6 +55,9 @@ See [vision/taste.md](vision/taste.md)
 
 # Package-Management
 - Placeholder/stub packages without real implementation should be gitignored from the repo until they contain working code and tests. Scaffolded packages create noise for new users and agents exploring the codebase. Confidence: 0.70
+
+# Git
+- Scope .gitignore patterns to root level (e.g., `/artifacts/`) when the intent is to ignore top-level runtime output directories. Unscoped patterns like `artifacts/` match nested source directories (e.g., `packages/core/src/artifacts/`), silently blocking source files from being tracked. Confidence: 0.85
 
 # Design-Philosophy
 - Prioritize low cognitive lift and low context-waste tooling — avoid telemetry, avoid unnecessary complexity, keep the tool focused and lightweight so it doesn't introduce drift or overhead into the user's workflow. Confidence: 0.70

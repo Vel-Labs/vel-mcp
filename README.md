@@ -131,6 +131,6 @@ No silent failures. No telemetry. No data leaves your machine.
 ## Read next
 
 - `AGENTS.md` — coding-agent contract and non-negotiable constraints
-- `SKILL.md` — natural-language routing guide for agents
+- `.skills/SKILL.md` — domain-indexed skill files for agents (setup, vision, video)
 - `ROADMAP.md` — upcoming phases (Brain, Speech, Privacy)
 - `ROADMAP-ARCHIVE.md` — completed phases (0–5)
