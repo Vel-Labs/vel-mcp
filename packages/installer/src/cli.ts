@@ -475,19 +475,21 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
 }
 
 function bootstrap(opts: InstallOptions): void {
-  if (isVelMcpRepo(opts.kitDir)) {
-    console.log(`[vel-mcp] Kit already exists at ${opts.kitDir}, skipping bootstrap.`);
-    return;
-  }
   mkdirSync(dirname(opts.kitDir), { recursive: true });
-  console.log("");
-  console.log(`─────── ═══ Vel Glasses Installer ═══ ───────`);
-  console.log(`  Bootstrapping kit ~/.vel/kits/vel-mcp`);
-  console.log(`  Target project: ${opts.projectDir}`);
-  console.log(`────────────────────────────────────────────────`);
-  console.log("");
-  console.log(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
-  run("git", ["clone", opts.repoUrl, opts.kitDir]);
+  if (isVelMcpRepo(opts.kitDir)) {
+    console.log("");
+    console.log(`[vel-mcp] Kit exists, updating...`);
+    run("git", ["pull"], { cwd: opts.kitDir });
+  } else {
+    console.log("");
+    console.log(`─────── ═══ Vel Glasses Installer ═══ ───────`);
+    console.log(`  Bootstrapping kit ~/.vel/kits/vel-mcp`);
+    console.log(`  Target project: ${opts.projectDir}`);
+    console.log(`────────────────────────────────────────────────`);
+    console.log("");
+    console.log(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
+    run("git", ["clone", opts.repoUrl, opts.kitDir]);
+  }
   if (opts.ref) run("git", ["checkout", opts.ref], { cwd: opts.kitDir });
   console.log(`[vel-mcp] Installing dependencies (pnpm install)...`);
   run("pnpm", ["install"], { cwd: opts.kitDir });
