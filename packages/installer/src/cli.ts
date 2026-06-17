@@ -750,6 +750,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     else console.log(`    Check your agent's MCP server list`);
     console.log(`────────────────────────────────────────────────`);
     console.log("");
+    return;
   }
   if (opts.format === "json") console.log(JSON.stringify(payload, null, 2));
   else console.log(renderInstall(payload));
