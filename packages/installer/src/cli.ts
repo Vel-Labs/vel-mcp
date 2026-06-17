@@ -669,7 +669,13 @@ function isVelMcpRepo(path: string): boolean {
 }
 
 function run(command: string, args: string[], opts: { cwd?: string } = {}): void {
-  const result = spawnSync(command, args, { stdio: "inherit", cwd: opts.cwd });
+  const result = spawnSync(command, args, {
+    stdio: ["inherit", "pipe", "pipe"],
+    cwd: opts.cwd,
+    encoding: "utf-8",
+  });
+  if (result.stdout) process.stderr.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed with exit ${result.status}`);
 }
 
