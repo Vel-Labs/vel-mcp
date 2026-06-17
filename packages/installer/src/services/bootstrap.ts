@@ -43,8 +43,6 @@ export function bootstrap(opts: InstallOptions): void {
   if (opts.ref) run("git", ["checkout", opts.ref], { cwd: opts.kitDir });
   log(`[vel-mcp] Installing dependencies (pnpm install)...`);
   run("pnpm", ["install"], { cwd: opts.kitDir });
-  log(`[vel-mcp] Approving build scripts (esbuild, sharp)...`);
-  run("pnpm", ["approve-builds", "esbuild", "sharp"], { cwd: opts.kitDir });
   log(`[vel-mcp] Building packages (pnpm build)...`);
   run("pnpm", ["build"], { cwd: opts.kitDir });
 }
