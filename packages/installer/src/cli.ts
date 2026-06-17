@@ -180,11 +180,10 @@ export function parseArgs(argv: string[]): InstallOptions {
     throw new Error(helpText());
   }
 
-  const localRepo = findRepo(process.cwd());
   const opts: InstallOptions = {
     target,
     projectDir: process.cwd(),
-    kitDir: localRepo ?? process.env.VEL_MCP_KIT_DIR ?? DEFAULT_KIT_DIR,
+    kitDir: DEFAULT_KIT_DIR,
     repoUrl: DEFAULT_REPO_URL,
     serverName: "vel-glasses",
     provider: "glasses-grounding",
@@ -478,9 +477,12 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
 function bootstrap(opts: InstallOptions): void {
   if (isVelMcpRepo(opts.kitDir)) return;
   mkdirSync(dirname(opts.kitDir), { recursive: true });
+  console.error(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
   run("git", ["clone", opts.repoUrl, opts.kitDir]);
   if (opts.ref) run("git", ["checkout", opts.ref], { cwd: opts.kitDir });
+  console.error(`[vel-mcp] Installing dependencies (pnpm install)...`);
   run("pnpm", ["install"], { cwd: opts.kitDir });
+  console.error(`[vel-mcp] Building packages (pnpm build)...`);
   run("pnpm", ["build"], { cwd: opts.kitDir });
 }
 
@@ -706,6 +708,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (opts.write) {
     writeAgentSkill(payload.agentSkillPath, payload.agentSkill);
     writeAgentInstructions(payload.agentInstructionsPath, payload.agentInstructions);
+    console.error(`[vel-mcp] Wrote ${payload.localManifest}`);
   }
   if (opts.format === "json") console.log(JSON.stringify(payload, null, 2));
   else console.log(renderInstall(payload));
