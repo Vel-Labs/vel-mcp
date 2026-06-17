@@ -476,22 +476,24 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
 
 function bootstrap(opts: InstallOptions): void {
   if (isVelMcpRepo(opts.kitDir)) {
-    console.error(`[vel-mcp] Kit already exists at ${opts.kitDir}, skipping bootstrap.`);
+    console.log(`[vel-mcp] Kit already exists at ${opts.kitDir}, skipping bootstrap.`);
     return;
   }
   mkdirSync(dirname(opts.kitDir), { recursive: true });
-  console.error("");
-  console.error(`─────── ═══ Vel Glasses Installer ═══ ───────`);
-  console.error(`  Bootstrapping kit ~/.vel/kits/vel-mcp`);
-  console.error(`  Target project: ${opts.projectDir}`);
-  console.error(`────────────────────────────────────────────────`);
-  console.error("");
-  console.error(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
+  console.log("");
+  console.log(`─────── ═══ Vel Glasses Installer ═══ ───────`);
+  console.log(`  Bootstrapping kit ~/.vel/kits/vel-mcp`);
+  console.log(`  Target project: ${opts.projectDir}`);
+  console.log(`────────────────────────────────────────────────`);
+  console.log("");
+  console.log(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
   run("git", ["clone", opts.repoUrl, opts.kitDir]);
   if (opts.ref) run("git", ["checkout", opts.ref], { cwd: opts.kitDir });
-  console.error(`[vel-mcp] Installing dependencies (pnpm install)...`);
+  console.log(`[vel-mcp] Installing dependencies (pnpm install)...`);
   run("pnpm", ["install"], { cwd: opts.kitDir });
-  console.error(`[vel-mcp] Building packages (pnpm build)...`);
+  console.log(`[vel-mcp] Approving build scripts (esbuild, sharp)...`);
+  run("pnpm", ["approve-builds", "esbuild", "sharp"], { cwd: opts.kitDir });
+  console.log(`[vel-mcp] Building packages (pnpm build)...`);
   run("pnpm", ["build"], { cwd: opts.kitDir });
 }
 
@@ -738,16 +740,16 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (opts.write) {
     writeAgentSkill(payload.agentSkillPath, payload.agentSkill);
     writeAgentInstructions(payload.agentInstructionsPath, payload.agentInstructions);
-    console.error("");
-    console.error(`─────── ═══ Vel Glasses Ready ═══ ───────`);
-    console.error(`  MCP server: vel-glasses`);
-    console.error(`  Config written: ${payload.localManifest}`);
-    console.error(`  Restart your agent, then verify with:`);
-    if (opts.target === "commandcode") console.error(`    cmd mcp list  (from this project)`);
-    else if (opts.target === "opencode") console.error(`    opencode mcp list`);
-    else console.error(`    Check your agent's MCP server list`);
-    console.error(`────────────────────────────────────────────────`);
-    console.error("");
+    console.log("");
+    console.log(`─────── ═══ Vel Glasses Ready ═══ ───────`);
+    console.log(`  MCP server: vel-glasses`);
+    console.log(`  Config written: ${payload.localManifest}`);
+    console.log(`  Restart your agent, then verify with:`);
+    if (opts.target === "commandcode") console.log(`    cmd mcp list  (from this project)`);
+    else if (opts.target === "opencode") console.log(`    opencode mcp list`);
+    else console.log(`    Check your agent's MCP server list`);
+    console.log(`────────────────────────────────────────────────`);
+    console.log("");
   }
   if (opts.format === "json") console.log(JSON.stringify(payload, null, 2));
   else console.log(renderInstall(payload));
