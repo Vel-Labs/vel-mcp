@@ -1,4 +1,5 @@
-import { WorkerSupervisor, type JsonlWorkerClient, type JsonlRequest } from "@vel/core";
+import { WorkerSupervisor, type JsonlWorkerClient, type ArtifactStore, type JsonlRequest } from "@vel/core";
+import { readFile } from "node:fs/promises";
 import type { AskInput, CompareInput, DescribeInput, DetectAnomaliesInput, ImageRef, InspectImageInput, InspectRegionInput, LocateInput, OcrInput, ReadDocumentInput } from "../schemas.js";
 import { parseLocateAnythingAnswer } from "../parsers/locateAnything.js";
 import type { VisionProvider, VisionProviderResult, OcrSpan } from "./types.js";
@@ -12,6 +13,7 @@ export interface VelVisionConfig {
   role?: string;
   workerCwd?: string;
   workerArgs?: string[];
+  artifactStore?: ArtifactStore;
 }
 
 export class VelVisionProvider implements VisionProvider {
@@ -31,6 +33,7 @@ export class VelVisionProvider implements VisionProvider {
       role: config?.role,
       workerCwd: config?.workerCwd ?? undefined,
       workerArgs: config?.workerArgs,
+      artifactStore: config?.artifactStore,
     };
     this.id = this.config.providerId ?? "glasses-vision";
     this.displayName = `VEL Glasses vision provider — ${this.config.role ?? "vision"} (MLX)`;
@@ -200,7 +203,6 @@ export class VelVisionProvider implements VisionProvider {
       return Buffer.from(base64, "base64");
     }
     if (ref.kind === "file_path") {
-      const { readFile } = await import("node:fs/promises");
       return readFile(ref.value);
     }
     throw new Error(`loadBytes not implemented for kind: ${ref.kind}`);
@@ -225,7 +227,15 @@ export class VelVisionProvider implements VisionProvider {
   }
 
   private async request(payload: JsonlRequest) {
-    return await this.getWorker().request(payload, 180_000);
+    const resolved = { ...payload };
+    if (resolved.image && typeof resolved.image === "object" && (resolved.image as Record<string, unknown>).kind === "artifact_id" && this.config.artifactStore) {
+      const imageRef = resolved.image as { kind: string; value: string };
+      resolved.image = {
+        kind: "file_path",
+        value: this.config.artifactStore.dataPath(imageRef.value),
+      };
+    }
+    return await this.getWorker().request(resolved, 180_000);
   }
 
   private activeModel(): string {

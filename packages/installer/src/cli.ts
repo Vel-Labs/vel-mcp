@@ -685,10 +685,10 @@ export function helpText(): string {
     "  vel-mcp install commandcode [--project-dir path] [--vision-vlm-model path] [--write] [--format human|json]",
     "",
     "Examples:",
-    "  npx @vel/mcp install mcp --project-dir . --bootstrap --write",
-    "  pnpm dlx @vel/mcp install codex --project-dir .",
-    "  pnpm dlx @vel/mcp install opencode --project-dir . --write",
-    "  pnpm dlx @vel/mcp install commandcode --project-dir . --write",
+    "  npx vel-mcp install mcp --project-dir . --bootstrap --write",
+    "  pnpm dlx vel-mcp install codex --project-dir .",
+    "  pnpm dlx vel-mcp install opencode --project-dir . --write",
+    "  pnpm dlx vel-mcp install commandcode --project-dir . --write",
   ].join("\n");
 }
 

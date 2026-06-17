@@ -1,6 +1,6 @@
-# @vel/mcp
+# vel-mcp
 
-`@vel/mcp` is the small installer and setup wizard for VEL-MCP. It does not run the glasses MCP server itself; it prints or writes the MCP client configuration needed to launch `@vel/glasses-mcp`.
+`vel-mcp` is the small installer and setup wizard for VEL-MCP. It does not run the glasses MCP server itself; it prints or writes the MCP client configuration needed to launch `@vel/glasses-mcp`.
 
 ## Quick start
 
@@ -15,34 +15,34 @@ pnpm setup:mcp -- --project-dir /path/to/project --write
 
 The wrapper runs `pnpm install`, builds this installer package, then runs the right `vel-mcp install ...` command with the cloned repo as the kit.
 
-After `@vel/mcp` is published, dry-run the generic MCP manifest for the current project:
+After `vel-mcp` is published, dry-run the generic MCP manifest for the current project:
 
 ```bash
-npx @vel/mcp install mcp --project-dir .
+npx vel-mcp install mcp --project-dir .
 ```
 
 Bootstrap the VEL-MCP kit into `~/.vel/kits/vel-mcp` and write a project-local `.mcp.json`:
 
 ```bash
-npx @vel/mcp install mcp --project-dir . --bootstrap --write
+npx vel-mcp install mcp --project-dir . --bootstrap --write
 ```
 
 Print Codex STDIO form fields:
 
 ```bash
-pnpm dlx @vel/mcp install codex --project-dir .
+pnpm dlx vel-mcp install codex --project-dir .
 ```
 
 Write an OpenCode project config:
 
 ```bash
-pnpm dlx @vel/mcp install opencode --project-dir . --write
+pnpm dlx vel-mcp install opencode --project-dir . --write
 ```
 
 Write a CommandCode project `.mcp.json`:
 
 ```bash
-pnpm dlx @vel/mcp install commandcode --project-dir . --write
+pnpm dlx vel-mcp install commandcode --project-dir . --write
 ```
 
 ## What the wizard emits

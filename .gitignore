@@ -22,3 +22,6 @@ packages/brain-mcp/
 packages/control-mcp/
 packages/speech-mcp/
 packages/privacy-gateway/
+
+# IDE / agent metadata
+.commandcode/

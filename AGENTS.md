@@ -2,6 +2,8 @@
 
 This repo is intended to be implemented by coding agents. Treat this document as the working contract.
 
+**If you are an agent setting up or using Vel Glasses, read `SKILL.md` first** — it contains install commands and natural-language tool routing guidance.
+
 ## Current priority
 
 Implement the vision layer first:

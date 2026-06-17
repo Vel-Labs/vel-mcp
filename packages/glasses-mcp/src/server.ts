@@ -78,6 +78,7 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
           python: pgConfig.python as string | undefined,
           workerArgs: pgConfig.workerArgs as string[] | undefined,
           workerCwd: pgConfig.workerCwd as string | undefined,
+          artifactStore,
         }),
         {
           priority: 1,
@@ -104,6 +105,7 @@ export function createGlassesServer(opts: GlassesServerOptions = {}) {
           python: pvConfig.python as string | undefined,
           workerArgs: pvConfig.workerArgs as string[] | undefined,
           workerCwd: pvConfig.workerCwd as string | undefined,
+          artifactStore,
         }),
         {
           priority: 1,

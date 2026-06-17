@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildInstallPayload, helpText, parseArgs, renderInstall, writeAgentInstructions, writeAgentSkill, writeCommandCodeConfig, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
 
-describe("@vel/mcp installer", () => {
+describe("vel-mcp installer", () => {
   it("parses npx-style generic MCP install options", () => {
     const opts = parseArgs([
       "install",
@@ -322,9 +322,9 @@ describe("@vel/mcp installer", () => {
 
   it("documents npx and pnpm dlx usage", () => {
     const out = helpText();
-    expect(out).toContain("npx @vel/mcp install mcp");
-    expect(out).toContain("pnpm dlx @vel/mcp install codex");
-    expect(out).toContain("pnpm dlx @vel/mcp install opencode");
-    expect(out).toContain("pnpm dlx @vel/mcp install commandcode");
+    expect(out).toContain("npx vel-mcp install mcp");
+    expect(out).toContain("pnpm dlx vel-mcp install codex");
+    expect(out).toContain("pnpm dlx vel-mcp install opencode");
+    expect(out).toContain("pnpm dlx vel-mcp install commandcode");
   });
 });

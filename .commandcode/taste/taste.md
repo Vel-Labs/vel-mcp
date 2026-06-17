@@ -56,6 +56,8 @@ See [vision/taste.md](vision/taste.md)
 - No silent failures: every error path must produce a structured warning with actionable detail surfaced in the result envelope. Graceful degradation means the operation continues but the user always knows what didn't work and why. Detailed understanding of failure is imperative. Confidence: 0.85
 
 # Documentation
+- README should follow a specific flow: (1) what this does, (2) quickstart for user + agent, (3) example messages / how to test, (4) testing with own content, (5) two-column capability table mapping user intent (OCR, image counting, location, image reasoning, video reasoning) to implementation (model, LocateAnything, etc.), (6) optional expanded table with model, functionality, and system requirements. Confidence: 0.70
+- README should be designed "agent-first" — if a user tells their coding agent to go to this README, the agent should be able to set everything up and get them started from the README content alone. Confidence: 0.70
 - README should include a quick start section with explicit per-agent instructions (commandcode, opencode, codex, mcp) rather than consolidating all targets into a single prose paragraph. Each agent gets its own subheading with the exact npx invocation. Confidence: 0.65
 - Include a self-contained copy-paste block per agent that bundles the install command with enough context (what it does, what to expect, next steps) so an agent reading the README can execute without hunting for surrounding prose. Confidence: 0.70
 
