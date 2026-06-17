@@ -1,6 +1,6 @@
 {
   "name": "vel-mcp",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "type": "module",
   "bin": {
     "vel-mcp": "dist/cli.js"
