@@ -154,6 +154,10 @@ importers:
         version: 1.61.0
 
   packages/installer:
+    dependencies:
+      '@vel/glasses-mcp':
+        specifier: workspace:*
+        version: link:../glasses-mcp
     devDependencies:
       '@types/node':
         specifier: ^20.14.0

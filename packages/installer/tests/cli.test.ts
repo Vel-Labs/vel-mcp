@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildInstallPayload, helpText, parseArgs, renderInstall, writeAgentInstructions, writeAgentSkill, writeCommandCodeConfig, writeManifest, writeOpenCodeConfig } from "../src/cli.js";
+import { buildInstallPayload, helpText, parseArgs, renderInstall, writeAgentInstructions, writeAgentSkill, writeCommandCodeConfig, writeManifest, writeOpenCodeConfig } from "../src/index.js";
 
 describe("vel-mcp installer", () => {
   it("parses npx-style generic MCP install options", () => {

@@ -105,6 +105,8 @@ pnpm verify
 pnpm smoke:glasses
 ```
 
+After building, use the CLI directly: `node packages/glasses-mcp/dist/cli.js <command>`. See `docs/cli_index.md` for all commands.
+
 ## Repository
 
 ```
@@ -114,7 +116,7 @@ packages/glasses-mcp/   Vision tools (14 MCP tools)
 packages/installer/     One-command npx bootstrap
 evals/glasses/          Vision eval harness
 examples/               Demo assets, MCP configs, workflows
-docs/                   Architecture, UX workflows, decisions
+docs/                   Architecture, UX workflows, decisions, CLI reference
 ```
 
 Future: Brain (local wiki), Speech (TTS), Control, Privacy Gateway.
@@ -131,6 +133,7 @@ No silent failures. No telemetry. No data leaves your machine.
 ## Read next
 
 - `AGENTS.md` — coding-agent contract and non-negotiable constraints
-- `.skills/SKILL.md` — domain-indexed skill files for agents (setup, vision, video)
+- `.skills/SKILL.md` — domain-indexed skill files for agents (setup, vision, video, cli)
+- `docs/cli_index.md` — every CLI command with copy-pasteable examples
 - `ROADMAP.md` — upcoming phases (Brain, Speech, Privacy)
 - `ROADMAP-ARCHIVE.md` — completed phases (0–5)

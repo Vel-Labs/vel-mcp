@@ -3,6 +3,8 @@ import { createGlassesServer } from "./server.js";
 import { connectStdio } from "@vel/mcp-base";
 import { loadVelConfig } from "@vel/core";
 
+export { discoverModels } from "./services/modelDiscovery.js";
+
 async function main(): Promise<void> {
   let config: Record<string, unknown> | undefined;
   try {

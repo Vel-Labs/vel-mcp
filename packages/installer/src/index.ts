@@ -1,0 +1,12 @@
+export { parseArgs, helpText, isInstallTarget } from "./args.js";
+export type { InstallOptions, InstallTarget } from "./args.js";
+export { buildInstallPayload } from "./services/buildInstallPayload.js";
+export type { InstallPayload, ModelSuggestion } from "./services/buildInstallPayload.js";
+export { renderInstall, log } from "./render.js";
+export { bootstrap } from "./services/bootstrap.js";
+export { writeManifest } from "./writers/writeManifest.js";
+export { writeCommandCodeConfig } from "./writers/writeCommandCodeConfig.js";
+export { writeOpenCodeConfig } from "./writers/writeOpenCodeConfig.js";
+export { writeAgentSkill } from "./writers/writeAgentSkill.js";
+export { writeAgentInstructions } from "./writers/writeAgentInstructions.js";
+export { main } from "./cli.js";
