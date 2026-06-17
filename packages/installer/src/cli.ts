@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { createRegistry, register } from "./registry.js";
 import { installCommand } from "./commands/install.js";
 import { helpText } from "./args.js";
@@ -28,7 +29,11 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   await handler.run({ args: rest });
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+function realpathSafe(p: string): string {
+  try { return realpathSync(p); } catch { return p; }
+}
+
+if (realpathSafe(process.argv[1]) === realpathSafe(fileURLToPath(import.meta.url))) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
