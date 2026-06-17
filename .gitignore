@@ -12,7 +12,7 @@ __pycache__/
 *.egg-info/
 .venv/
 .cache/
-artifacts/
+/artifacts/
 work_dirs/
 models/
 eagle/
