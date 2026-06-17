@@ -4,12 +4,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 
-// npm 10.x npx swallows child stdout on exit 0. Write direct to fd 1 and
-// force a sync flush on exit so the user sees the install banner.
-function log(...args: unknown[]): void {
-  process.stdout.write(args.join(" ") + "\n");
-}
-
 const DEFAULT_REPO_URL = "https://github.com/Vel-Labs/vel-mcp.git";
 const DEFAULT_KIT_DIR = resolve(homedir(), ".vel/kits/vel-mcp");
 const OPENCODE_TIMEOUT_MS = 180_000;
@@ -483,27 +477,25 @@ function modelRoleGuide(): InstallPayload["modelRoles"] {
 function bootstrap(opts: InstallOptions): void {
   mkdirSync(dirname(opts.kitDir), { recursive: true });
   if (isVelMcpRepo(opts.kitDir)) {
-    log("");
-    log(`[vel-mcp] Kit exists, updating...`);
-    run("git", ["fetch", "origin"], { cwd: opts.kitDir });
-    run("git", ["reset", "--hard", "origin/main"], { cwd: opts.kitDir });
-    run("git", ["clean", "-fd"], { cwd: opts.kitDir });
+    console.log("");
+    console.log(`[vel-mcp] Kit exists, updating...`);
+    run("git", ["pull"], { cwd: opts.kitDir });
   } else {
-    log("");
-    log(`─────── ═══ Vel Glasses Installer ═══ ───────`);
-    log(`  Bootstrapping kit ~/.vel/kits/vel-mcp`);
-    log(`  Target project: ${opts.projectDir}`);
-    log(`────────────────────────────────────────────────`);
-    log("");
-    log(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
+    console.log("");
+    console.log(`─────── ═══ Vel Glasses Installer ═══ ───────`);
+    console.log(`  Bootstrapping kit ~/.vel/kits/vel-mcp`);
+    console.log(`  Target project: ${opts.projectDir}`);
+    console.log(`────────────────────────────────────────────────`);
+    console.log("");
+    console.log(`[vel-mcp] Cloning ${opts.repoUrl} → ${opts.kitDir}`);
     run("git", ["clone", opts.repoUrl, opts.kitDir]);
   }
   if (opts.ref) run("git", ["checkout", opts.ref], { cwd: opts.kitDir });
-  log(`[vel-mcp] Installing dependencies (pnpm install)...`);
+  console.log(`[vel-mcp] Installing dependencies (pnpm install)...`);
   run("pnpm", ["install"], { cwd: opts.kitDir });
-  log(`[vel-mcp] Approving build scripts (esbuild, sharp)...`);
+  console.log(`[vel-mcp] Approving build scripts (esbuild, sharp)...`);
   run("pnpm", ["approve-builds", "esbuild", "sharp"], { cwd: opts.kitDir });
-  log(`[vel-mcp] Building packages (pnpm build)...`);
+  console.log(`[vel-mcp] Building packages (pnpm build)...`);
   run("pnpm", ["build"], { cwd: opts.kitDir });
 }
 
@@ -738,7 +730,7 @@ export function helpText(): string {
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
-    log(helpText());
+    console.log(helpText());
     return;
   }
   const opts = parseArgs(argv);
@@ -750,20 +742,20 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (opts.write) {
     writeAgentSkill(payload.agentSkillPath, payload.agentSkill);
     writeAgentInstructions(payload.agentInstructionsPath, payload.agentInstructions);
-    log("");
-    log(`─────── ═══ Vel Glasses Ready ═══ ───────`);
-    log(`  MCP server: vel-glasses`);
-    log(`  Config written: ${payload.localManifest}`);
-    log(`  Restart your agent, then verify with:`);
-    if (opts.target === "commandcode") log(`    cmd mcp list  (from this project)`);
-    else if (opts.target === "opencode") log(`    opencode mcp list`);
-    else log(`    Check your agent's MCP server list`);
-    log(`────────────────────────────────────────────────`);
-    log("");
+    console.log("");
+    console.log(`─────── ═══ Vel Glasses Ready ═══ ───────`);
+    console.log(`  MCP server: vel-glasses`);
+    console.log(`  Config written: ${payload.localManifest}`);
+    console.log(`  Restart your agent, then verify with:`);
+    if (opts.target === "commandcode") console.log(`    cmd mcp list  (from this project)`);
+    else if (opts.target === "opencode") console.log(`    opencode mcp list`);
+    else console.log(`    Check your agent's MCP server list`);
+    console.log(`────────────────────────────────────────────────`);
+    console.log("");
     return;
   }
-  if (opts.format === "json") log(JSON.stringify(payload, null, 2));
-  else log(renderInstall(payload));
+  if (opts.format === "json") console.log(JSON.stringify(payload, null, 2));
+  else console.log(renderInstall(payload));
 }
 
 function escapeRegExp(value: string): string {
